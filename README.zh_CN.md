@@ -71,6 +71,10 @@
       <img src="omacos.png" alt="cmd running on macOS" height="150" />
       <br/><sub><b>macOS</b></sub>
     </td>
+    <td align="center">
+      <img src="omsys2.png" alt="cmd running on MSYS2" height="150" />
+      <br/><sub><b>MSYS2</b></sub>
+    </td>
   </tr>
 </table>
 
