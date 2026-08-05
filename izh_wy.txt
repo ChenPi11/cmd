@@ -1,0 +1,723 @@
+zh_WY
+---
+
+MSG_BANNER_COPYRIGHT
+"巨硬 %s [版本 %s]\n"
+"版权 二零二六 - 子陈。不保诸权。\n"
+---
+
+MSG_NOT_RECOGNIZED
+"'%s' 非内令非外令，亦非可行之程或批文。\n"
+---
+
+MSG_TERMINATE_BATCH
+"止批文乎？(Y/N)?"
+---
+
+MSG_ON
+"启"
+---
+
+MSG_OFF
+"闭"
+---
+
+MSG_ERR_FILE_NOT_FOUND
+"系统未觅所指之文。\n"
+---
+
+MSG_ERR_PATH_NOT_FOUND
+"系统未觅所指之径。\n"
+---
+
+MSG_ERR_FILE_NOT_FOUND_NAMED
+"系统未觅所指之文: '%s'\n"
+---
+
+MSG_ERR_CANNOT_CREATE_FILE
+"系统不能建文 '%s'。\n"
+---
+
+MSG_ERR_LABEL_NOT_FOUND
+"系统未觅所指之批标 - %s\n"
+---
+
+MSG_ERR_OPEN_BATCH
+"不能开批文 '%s': %s\n"
+---
+
+MSG_ERR_CALL_DEPTH
+"逾脚本呼嵌套之最深。\n"
+---
+
+MSG_ERR_EXEC_FAILED
+"不能行 '%s': %s\n"
+---
+
+MSG_ERR_COULD_NOT_FIND
+"未觅 '%s'\n"
+---
+
+MSG_ERR_COULD_NOT_DELETE
+"未觅或不能删 '%s'\n"
+---
+
+MSG_ERR_RENAME
+"不能更 '%s' 之名至 '%s': %s\n"
+---
+
+MSG_ERR_DUPLICATE_NAME
+"文件名复，或未觅文。\n"
+---
+
+MSG_ERR_ALREADY_EXISTS
+"子目或文 '%s' 已存。\n"
+---
+
+MSG_ERR_DIR_NOT_EMPTY
+"目 '%s' 非空。\n"
+---
+
+MSG_ERR_ENV_NOT_DEFINED
+"环境变量未定\n"
+---
+
+MSG_ERR_INVALID_COLOR
+"颜色属性无效。\n"
+---
+
+MSG_ERR_SET_DATE
+"系统不能设日: %s\n"
+---
+
+MSG_ERR_BAD_DATE
+"系统不能纳所入之日。\n"
+---
+
+MSG_ERR_SET_TIME
+"系统不能设时: %s\n"
+---
+
+MSG_ERR_BAD_TIME
+"系统不能纳所入之时。\n"
+---
+
+MSG_ERR_ASSOC_NOT_FOUND
+"未觅后缀 %s 之文关联\n"
+---
+
+MSG_ERR_ASSOC_UPDATE
+"ASSOC: 更新关联败\n"
+---
+
+MSG_ERR_CALL_LABEL_OUTSIDE
+"CALL :label 惟能用于批文。\n"
+---
+
+MSG_ERR_CD_GETCWD
+"CD: 不能得今之目录: %s\n"
+---
+
+MSG_ERR_COPY
+"复制 '%s' 至 '%s' 时有误\n"
+---
+
+MSG_ERR_COPY_DETAIL
+"复制 '%s' 至 '%s' 有误: %s\n"
+---
+
+MSG_ERR_COPY_MISSING_SOURCE
+"COPY: 缺源文\n"
+---
+
+MSG_ERR_COPY_MISSING_DEST
+"COPY: 缺的\n"
+---
+
+MSG_ERR_FOR_OPEN
+"FOR /F: 不能开 '%s'\n"
+---
+
+MSG_ERR_FOR_EXTENSIONS
+"FOR: 此选须启令扩。\n"
+---
+
+MSG_ERR_FOR_SYNTAX
+"FOR: 句法误\n"
+---
+
+MSG_ERR_FTYPE_NOT_FOUND
+"未觅文类 '%s'。\n"
+---
+
+MSG_ERR_IF_SYNTAX
+"IF: 句法误\n"
+---
+
+MSG_ERR_IF_MISSING_CMD
+"IF: 缺令\n"
+---
+
+MSG_ERR_MKLINK_MISSING
+"MKLINK: 缺链接名或目标\n"
+---
+
+MSG_ERR_MKLINK_NOT_DIR
+"MKLINK: 若目标 '%s' 非目，则不能建 %s。\n"
+---
+
+MSG_ERR_MKLINK_HARD
+"不能建硬链接 '%s': %s\n"
+---
+
+MSG_ERR_MKLINK_JUNCTION
+"不能建交接点 '%s': %s\n"
+---
+
+MSG_ERR_MKLINK_SYMLINK
+"不能建符号链接 '%s': %s\n"
+---
+
+MSG_ERR_MOVE_REQUIRES
+"MOVE: 需源与的。\n"
+---
+
+MSG_ERR_MOVE
+"移 '%s' 至 '%s' 有误: %s\n"
+---
+
+MSG_ERR_POPD_RESTORE
+"POPD: 不能复目 '%s': %s\n"
+---
+
+MSG_ERR_PUSHD_GETCWD
+"PUSHD: 不能得今目\n"
+---
+
+MSG_ERR_PUSHD_OVERFLOW
+"PUSHD: 目录栈溢\n"
+---
+
+MSG_ERR_PUSHD_CHANGE
+"PUSHD: 不能转至 '%s': %s\n"
+---
+
+MSG_ERR_SET_EXPR
+"SET: 表达式无效\n"
+---
+
+MSG_ERR_SET_A_EXPR
+"SET /A: 缺表达式\n"
+---
+
+MSG_ERR_SET_P_EQUALS
+"SET: /P 参中缺 '='\n"
+---
+
+MSG_ERR_SET_P_VAR
+"SET /P: 缺 variable=prompt\n"
+---
+
+MSG_ERR_SETLOCAL_NESTING
+"SETLOCAL: 达嵌套之限\n"
+---
+
+MSG_ERR_START_CHDIR
+"START: 不能改目至 '%s'\n"
+---
+
+MSG_ERR_START_NOT_FOUND
+"START: 未觅 '%s'\n"
+---
+
+MSG_ERR_START_FAILED
+"START: 启 '%s' 败\n"
+---
+
+MSG_ERR_START_NO_DISPLAY
+"START：未有可用之图形显示（当设 DISPLAY 或 WAYLAND_DISPLAY）\n"
+---
+
+MSG_ERR_VERIFY_ARG
+"VERIFY 须为 ON 或 OFF。\n"
+---
+
+MSG_ASK_OVERWRITE
+"覆 %s 乎？(Y/N)? "
+---
+
+MSG_ASK_DELETE
+"%s，删乎？(Y/N)?"
+---
+
+MSG_ASK_RD_CONFIRM
+"%s，确欲删乎？(Y/N)? "
+---
+
+MSG_ASK_PRESS_KEY
+"击任意键以续 . . . "
+---
+
+MSG_ASK_PRESS_KEY_NL
+"\n"
+"击任意键以续 . . ."
+---
+
+MSG_ASK_ENTER_DATE
+"请入新日 (mm-dd-yy) "
+---
+
+MSG_ASK_ENTER_TIME
+"请入新时: "
+---
+
+MSG_INFO_ECHO_IS
+"ECHO 处于 %s 之状\n"
+---
+
+MSG_INFO_VERIFY_IS
+"VERIFY 处于 %s 之状\n"
+---
+
+MSG_INFO_FILE_NOT_FOUND
+"未觅文\n"
+---
+
+MSG_INFO_DIRECTORY_OF
+" %s 之目录\n"
+"\n"
+---
+
+MSG_INFO_FILES_TOTAL
+"%16ld 文 %14ld 字节\n"
+---
+
+MSG_INFO_DIRS_TOTAL
+"%16ld 目 %14ld 字节可用\n"
+---
+
+MSG_INFO_TOTAL_FILES
+"\n"
+"所列文总数:\n"
+---
+
+MSG_INFO_COPY_DONE
+"已复制         1 文。\n"
+---
+
+MSG_INFO_NO_PATH
+"无径\n"
+---
+
+MSG_INFO_CURRENT_DATE
+"今之日: %s %02d/%02d/%04d\n"
+---
+
+MSG_INFO_CURRENT_TIME
+"今之时: %02d:%02d:%02d.%02d\n"
+---
+
+MSG_INFO_VOLUME_LABEL
+"驱动器/中之卷为 %s\n"
+---
+
+MSG_INFO_VOLUME_NO_LABEL
+"驱动器/中之卷无标。\n"
+---
+
+MSG_INFO_VOLUME_SERIAL
+"卷序列号 %04lX-%04lX\n"
+---
+
+MSG_INFO_DEL_QUIET
+"DEL: 删文。\n"
+---
+
+MSG_OK_HARDLINK
+"已建硬链接 %s <<===>> %s\n"
+---
+
+MSG_OK_JUNCTION
+"已建交接点 %s <<===>> %s\n"
+---
+
+MSG_OK_SYMLINK
+"已建符号链接 %s <<===>> %s\n"
+---
+
+MSG_HELP_ASSOC
+"示或改文后缀关联。\n"
+"\n"
+"ASSOC [.ext[=[文类]]]\n"
+"\n"
+"  .ext      指所关文类之后缀。\n"
+"  文类      指与后缀关之文类。\n"
+"\n"
+"无参入 ASSOC 以显今之文关联。\n"
+---
+
+MSG_HELP_CALL
+"从另一批程序呼此。\n"
+"\n"
+"CALL [驱动器:][径]文件名 [批参]\n"
+"\n"
+"  批参   指批程序所需之命令行信息。\n"
+"\n"
+"若启令扩，则 CALL 变如下:\n"
+"  CALL :label 参数\n"
+---
+
+MSG_HELP_CD
+"示今目录之名或改之。\n"
+"\n"
+"CHDIR [/D] [驱动器:][径]\n"
+"CHDIR [..]\n"
+"CD    [/D] [驱动器:][径]\n"
+"CD    [..]\n"
+"\n"
+"  ..   指改至父目录。\n"
+"\n"
+"入 CD 驱动器: 可显所指驱动器中之今目。\n"
+"无参入 CD 可显今驱动器及目录。\n"
+"\n"
+"用 /D 开关可并改今驱动器及所指驱动器之今目。\n"
+---
+
+MSG_HELP_CLS
+"清屏。\n"
+"\n"
+"CLS\n"
+---
+
+MSG_HELP_COLOR
+"设默认之控制台前背景色。\n"
+"\n"
+"COLOR [attr]\n"
+"\n"
+"  attr   指控制台输出之色性。\n"
+"\n"
+"色性由两位十六进制数定:\n"
+"  0=黑   1=蓝   2=绿   3=浅绿\n"
+"  4=红   5=紫   6=黄   7=白\n"
+"  8=灰   9=亮蓝 A=亮绿\n"
+"  B=亮浅绿 C=亮红\n"
+"  D=亮紫 E=亮黄\n"
+"  F=亮白\n"
+"\n"
+"例: COLOR fc (亮红底上之亮白)\n"
+---
+
+MSG_HELP_COPY
+"将一文或多文复制至他处。\n"
+"\n"
+"COPY [/D] [/V] [/N] [/Y | /-Y] [/Z] [/L] [/A | /B] source\n"
+"     [+ source [+ ...]] [destination]\n"
+"\n"
+"  source       指所复制之文。\n"
+"  destination  指新文之目录及/或文件名。\n"
+"  /Y           覆现存文时不问确。\n"
+"  /-Y          覆现存文时问确。\n"
+---
+
+MSG_HELP_DATE
+"示或设日。\n"
+"\n"
+"DATE [/T | date]\n"
+"\n"
+"无参入 DATE 可显今之日设并提示入新日。按 Enter 键保同。\n"
+"\n"
+"/T  惟显今之日，不提示入新。\n"
+---
+
+MSG_HELP_DEL
+"删一文或多文。\n"
+"\n"
+"DEL [/P] [/F] [/S] [/Q] [/A[[:attributes]]] names\n"
+"ERASE [/P] [/F] [/S] [/Q] [/A[[:attributes]]] names\n"
+"\n"
+"  names     指一文或多文或目录之列。\n"
+"  /P        删每文前问确。\n"
+"  /F        强删只读文。\n"
+"  /S        从所有子目中删所指文。\n"
+"  /Q        静默，用通配时不问确。\n"
+"  /A        依性选删之文 (D 目录、H 隐、R 只读、S 系统、A 存档、L 链接，前缀 - 表排除)。\n"
+---
+
+MSG_HELP_DIR
+"示目录中之文与子目列表。\n"
+"\n"
+"DIR [驱动器:][径][文件名] [/B] [/D] [/L] [/N] [/O[排序序]]\n"
+"    [/P] [/Q] [/S] [/T[时字段]] [/W] [/X] [/4] [/A[性]]\n"
+"\n"
+"  /A   示有指定性之文: D 目录、H 隐、R 只读、S 系统、A 存档、L 链接 (前缀 - 表排除)。\n"
+"  /O   按排序序列文: N 名、S 大小、E 后缀、D 日时、G 目录优先 (前缀 - 表逆)。\n"
+"  /T   控示之时字段: C 创建、A 上次访问、W 上次写 (默认)。\n"
+"  /Q   示文所有者。\n"
+"  /X   示短名 (Unix 上不适用)。\n"
+"  /4   示四位年份 (默认)。\n"
+---
+
+MSG_HELP_DOSKEY
+"编命令行、重调 Windows 令并建宏。\n"
+"\n"
+"DOSKEY [/MACROS] [/HISTORY] [宏名=[命令行]]\n"
+"\n"
+"  /MACROS      示所有 DOSKEY 宏。\n"
+"  /HISTORY     示存于内存中之所有令。\n"
+"  宏名         指宏之名。\n"
+"  命令行       指所赋于宏之令。\n"
+"                $* 展为所有参，$1-$9 为编号参，\n"
+"                $T 分隔令，$$ 表字面 $。\n"
+---
+
+MSG_HELP_ENDLOCAL
+"结束批文内环境变改之本地化。\n"
+"\n"
+"ENDLOCAL\n"
+---
+
+MSG_HELP_EXIT
+"退 CMD.EXE (令释器) 或今批脚本。\n"
+"\n"
+"EXIT [/B] [exitCode]\n"
+"\n"
+"  /B        指退今批脚本而非 CMD.EXE。\n"
+"            若在批脚本外行，则退 CMD.EXE。\n"
+"  exitCode  指一数。若指定 /B，则设 ERRORLEVEL 为此数。\n"
+"            若退 CMD.EXE，则用此数设进程退码。\n"
+---
+
+MSG_HELP_FOR
+"对一组文之每文行所指之令。\n"
+"\n"
+"FOR %variable IN (set) DO command [command-parameters]\n"
+"FOR /D %variable IN (set) DO command\n"
+"FOR /L %variable IN (start,step,end) DO command\n"
+"FOR /F [\"options\"] %variable IN (file-set) DO command\n"
+"FOR /R [[drive:]path] %variable IN (set) DO command\n"
+"\n"
+"  %variable  单字母之可替参。\n"
+"  (set)      一文或多文之集。\n"
+"  command    对每文所行之令。\n"
+---
+
+MSG_HELP_FTYPE
+"示或改文后缀关联所用之文类。\n"
+"\n"
+"FTYPE [fileType[=[openCommandString]]]\n"
+"\n"
+"  fileType          指所查或改之文类。\n"
+"  openCommandString 指启此类文时所用之开令。\n"
+---
+
+MSG_HELP_GOTO
+"将 cmd.exe 引至批程序中之标号行。\n"
+"\n"
+"GOTO label\n"
+"\n"
+"  label  指批程序中用作标签之文串。\n"
+"\n"
+"入 GOTO :EOF 可将控制转至今批脚本之末。\n"
+---
+
+MSG_HELP_IF
+"在批程序中行条件处理。\n"
+"\n"
+"IF [NOT] ERRORLEVEL number command\n"
+"IF [NOT] string1==string2 command\n"
+"IF [NOT] EXIST filename command\n"
+"IF [/I] string1 compare-op string2 command\n"
+"IF [NOT] DEFINED variable command\n"
+"\n"
+"  compare-op: EQU NEQ LSS LEQ GTR GEQ\n"
+"  /I: 不辨大小写之串比较\n"
+---
+
+MSG_HELP_MD
+"建目录。\n"
+"\n"
+"MKDIR [驱动器:]径\n"
+"MD    [驱动器:]径\n"
+---
+
+MSG_HELP_MKLINK
+"建符号链接。\n"
+"\n"
+"MKLINK [[/D] | [/H] | [/J]] LinkName Target\n"
+"\n"
+"  /D  建目录符号链接。默认为文符号链接。\n"
+"  /H  建硬链接而非符号链接。\n"
+"  /J  建目录交接点。\n"
+"  LinkName  指新符号链接之名。\n"
+"  Target    指新链接所引之径 (相对或绝对)。\n"
+---
+
+MSG_HELP_MOVE
+"移文并更名文与目录。\n"
+"\n"
+"MOVE [/Y | /-Y] [驱动器:][径]文件名1[,...] destination\n"
+"\n"
+"  /Y   不提示确覆现存文。\n"
+"  /-Y  提示确覆现存文。\n"
+---
+
+MSG_HELP_PATH
+"示或设可执行文件之搜索径。\n"
+"\n"
+"PATH [[驱动器:]径[;...]]\n"
+"PATH ;\n"
+"\n"
+"入 PATH ; 可清所有搜索径设，并示操作系统惟于今目中搜索。\n"
+"无参入 PATH 可显今之径。\n"
+---
+
+MSG_HELP_POPD
+"改至 PUSHD 令所存之目录。\n"
+"\n"
+"POPD\n"
+---
+
+MSG_HELP_PROMPT
+"改 cmd.exe 令提示符。\n"
+"\n"
+"PROMPT [text]\n"
+"\n"
+"  text   指新令提示符。\n"
+"\n"
+"提示符可由常字与特殊代码组成:\n"
+"  $A  &          $B  |          $C  (          $D  日\n"
+"  $E  Escape     $F  )          $G  >          $H  退格\n"
+"  $L  <          $N  驱动器     $P  径        $Q  =\n"
+"  $S  空格       $T  时         $V  版本       $_  换行\n"
+"  $$  $          $+  PUSHD 深\n"
+---
+
+MSG_HELP_PUSHD
+"存今目以备 POPD 令用，然后改至所指之目。\n"
+"\n"
+"PUSHD [path | ..]\n"
+"\n"
+"  path  指欲设为今目之目录。\n"
+---
+
+MSG_HELP_RD
+"删目录。\n"
+"\n"
+"RMDIR [/S] [/Q] [驱动器:]径\n"
+"RD    [/S] [/Q] [驱动器:]径\n"
+"\n"
+"  /S  除目录本身外，亦删所指目录中之所有目与文。\n"
+"  /Q  静默；用 /S 删目录树时不问确。\n"
+---
+
+MSG_HELP_REN
+"更文名。\n"
+"\n"
+"RENAME [驱动器:][径]文件名1 文件名2\n"
+"REN    [驱动器:][径]文件名1 文件名2\n"
+"\n"
+"注，不能为的指文指定新驱动器或径。\n"
+"两名中皆许用通配符 (‘*’ 与 ‘?’)。\n"
+---
+
+MSG_HELP_SET
+"示、设或删 cmd.exe 环境变量。\n"
+"\n"
+"SET [variable=[string]]\n"
+"SET /A expression\n"
+"SET /P variable=[promptString]\n"
+"\n"
+"  variable  指环境变量之名。\n"
+"  string    指所赋于变量之字符序列。\n"
+"  /A        将 expression 算为数式。\n"
+"  /P        设变量值为用户所入之一行。\n"
+---
+
+MSG_HELP_SETLOCAL
+"始批文内环境变改之本地化。\n"
+"\n"
+"SETLOCAL [ENABLEEXTENSIONS | DISABLEEXTENSIONS]\n"
+"         [ENABLEDELAYEDEXPANSION | DISABLEELAYEDEXPANSION]\n"
+---
+
+MSG_HELP_SHIFT
+"改批文中可替参数之位置。\n"
+"\n"
+"SHIFT [/n]\n"
+"\n"
+"  /n  指开始移位之命令行参数位置，n 在零与八之间。须令扩。\n"
+---
+
+MSG_HELP_START
+"启独立窗口以行所指之程序或令。\n"
+"\n"
+"START [\"title\"] [/D path] [/B] [/WAIT] [/I]\n"
+"      [/MIN] [/MAX] [/LOW] [/NORMAL] [/HIGH] [/REALTIME]\n"
+"      [/ABOVENORMAL] [/BELOWNORMAL]\n"
+"      command [parameters]\n"
+"\n"
+"  /B      启应用而不建新窗。(Unix: 默认)\n"
+"  /WAIT   启应用并待其终止。\n"
+"  /D path 在给定目录中启应用。\n"
+"  /I      忽略 (Unix 上环境按原样继承)。\n"
+---
+
+MSG_HELP_TIME
+"示或设系统时。\n"
+"\n"
+"TIME [/T | time]\n"
+"\n"
+"无参入 TIME 可显今之时设并提示入新时。按 Enter 键保同。\n"
+"\n"
+"/T  惟显今之时，不提示入新。\n"
+---
+
+MSG_HELP_TITLE
+"设令提示符窗口之标题。\n"
+"\n"
+"TITLE [string]\n"
+"\n"
+"  string  指令提示符窗口之标题。\n"
+"           若未指定串，则清标题。\n"
+---
+
+MSG_HELP_TYPE
+"示文本文件之内容。\n"
+"\n"
+"TYPE [驱动器:][径]文件名\n"
+---
+
+MSG_HELP_VERIFY
+"示 cmd.exe 是否验文正确写入磁盘。\n"
+"\n"
+"VERIFY [ON | OFF]\n"
+"\n"
+"无参入 VERIFY 可显今之 VERIFY 设。\n"
+---
+
+MSG_HELP_VOL
+"示磁盘卷标及序列号 (若有)。\n"
+"\n"
+"VOL [驱动器:]\n"
+---
+
+MSG_HELP_CMD
+"启令释器之新实例。\n"
+"\n"
+"CMD [/C|/K] [/S] [/Q] [/D] [/A|/U] [/T:{<b><f>|<f>}]\n"
+"    [/E:{ON|OFF}] [/F:{ON|OFF}] [/V:{ON|OFF}] [string]\n"
+"\n"
+"  /C  行 string 所指之令，然后退。\n"
+"  /K  行 string 所指之令并保持行。\n"
+"  /S  改 /C 或 /K 之后 string 之处理方式。\n"
+"  /Q  关回显。\n"
+"  /D  禁 AutoRun 令之行。\n"
+"  /A  输出格式: ANSI。\n"
+"  /U  输出格式: Unicode (不完全支持)。\n"
+"  /T:{<b><f>|<f>}  设前/背景色。\n"
+"  /E:ON   启令扩 (默认)。\n"
+"  /E:OFF  禁令扩。\n"
+"  /F:ON   启文与目录名补全。\n"
+"  /F:OFF  禁文与目录名补全 (默认)。\n"
+"  /V:ON   启延迟环境变量扩展。\n"
+"  /V:OFF  禁延迟环境变量扩展 (默认)。\n"

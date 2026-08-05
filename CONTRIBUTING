@@ -1,0 +1,26 @@
+# Contributing
+
+## Code Style for files which will be packaged into tarball
+
+1. Use UPPER_CASE for macros, snake_case for others.
+2. **Don't use `//` comments. ANSI C don't support them.**
+3. **Don't use comments or spaces after macros, AT&T C preprocessor
+cannot handle them.**
+4. Use Microsoft C style using `clang-format`.
+5. Don't create directory on this repository.
+6. Don't use `#pragma once`, use include guards instead.
+
+## Source file naming
+
+Source files was named with a single alpha character and it's real name,
+following 8.3 filename format.
+
+### Meaning of the single alpha character
+
++ `b`: Built-in commands, e.g, `bcd.c` -> Built-in `cd` command.
++ `c`: cmd binary source files.
++ `g`: General source files, e.g., `glibcmd.h` -> General library for cmd.
++ `i`: Internationalization source files.
++ `l`: Library source files (libcmd).
++ `t`: Tools.
++ `o`: Overview files.

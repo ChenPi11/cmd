@@ -1,0 +1,185 @@
+NAME
+     cmd -- a cmd.exe clone for Unix
+
+SYNOPSIS
+     cmd [/c|/k] [/s] [/q] [/d] [/a|/u] [/t:{bf|f}]
+         [/e:{on|off}] [/f:{on|off}] [/v:{on|off}] [string]
+
+DESCRIPTION
+     cmd is a faithful reimplementation of the Windows cmd.exe command
+     interpreter for Unix systems.  It provides a familiar batch scripting
+     environment with the same builtin commands, pipe and redirection
+     operators, and variable expansion semantics as the original.
+
+     The project compiles to two executables:
+
+       cmd.exe       The standard interpreter.  On startup it displays a
+                     version banner and enters interactive mode.
+
+       COMMAND.COM   Built with -DENABLE_AUTOEXEC.  On startup it looks
+                     for AUTOEXEC.BAT in the current directory and runs it
+                     before entering interactive mode.  This mimics the
+                     behaviour of the classic MS-DOS command processor.
+
+     Both executables support the same command-line switches and builtin
+     commands listed below.
+
+OPTIONS
+     /c string       Execute string and exit.
+     /k string       Execute string and remain interactive.
+     /s              Special parsing mode for /c and /k (strip first and
+                     last quote from the command string).
+     /q              Quiet mode; do not print the banner or prompt.
+     /d              Disable AutoRun scripts.
+     /a              ANSI output (default).
+     /u              Unicode output.
+     /t:{bf|f}       Set foreground (f) and background (bf) colours as
+                     hexadecimal nibbles (e.g. /t:0f for black on white).
+     /e:{on|off}     Enable or disable command extensions.
+     /f:{on|off}     Enable or disable file-name completion.
+     /v:{on|off}     Enable or disable delayed environment variable
+                     expansion.
+
+BUILTIN COMMANDS
+     ASSOC           Display or modify file extension associations.
+     BREAK           Set or clear Ctrl+C checking (no-op on Unix).
+     CALL            Call a batch file or a labelled subroutine.
+     CD / CHDIR      Change the current directory.
+     CLS             Clear the screen.
+     COLOR           Set the console foreground and background colours.
+     COPY            Copy one or more files.
+     DATE            Display or set the system date.
+     DEL / ERASE     Delete one or more files.
+     DIR             List files and subdirectories.
+     DOSKEY          Edit command history, create macros.
+     ECHO            Display messages or toggle command echoing.
+     ENDLOCAL        Restore environment variables saved by SETLOCAL.
+     EXIT            Exit the interpreter or a batch file.
+     FOR             Loop over a set of files or output lines.
+     FTYPE           Display or modify file type open commands.
+     GOTO            Jump to a label in a batch file.
+     IF              Conditional execution.
+     MD / MKDIR      Create a directory.
+     MKLINK          Create a symbolic link or hard link.
+     MOVE            Move one or more files.
+     PATH            Display or set the executable search path.
+     PAUSE           Wait for a key press.
+     POPD            Restore the directory saved by PUSHD.
+     PROMPT          Change the command prompt string.
+     PUSHD           Save the current directory and change to a new one.
+     RD / RMDIR      Remove a directory.
+     REM             Record a comment in a batch file.
+     REN / RENAME    Rename a file or directory.
+     SET             Display, set, or remove environment variables.
+     SETLOCAL        Save the current environment so it can be restored.
+     SHIFT           Shift batch file arguments.
+     START           Start a program in a new window or session.
+     TIME            Display or set the system time.
+     TITLE           Set the window title.
+     TYPE            Display the contents of a text file.
+     VER             Display the operating system version.
+     VERIFY          Toggle write-verification (no-op on Unix).
+     VOL             Display the volume label and serial number.
+
+BATCH FILES
+     cmd can execute batch files (.bat and .cmd extensions) with full
+     support for CALL, GOTO, IF, FOR, SHIFT, %0..%9 argument expansion,
+     and SETLOCAL/ENDLOCAL scoping.  Labels are defined with the colon
+     prefix (e.g. :my_label) and jumped to with GOTO or CALL.
+
+PIPES AND REDIRECTION
+     cmd supports the following operators with the same precedence as
+     the original cmd.exe:
+
+       |           Pipe stdout of the left command to stdin of the right.
+       < file      Redirect stdin from file.
+       > file      Redirect stdout to file (overwrite).
+       >> file     Redirect stdout to file (append).
+       2> file     Redirect stderr to file.
+
+     Multiple redirections can be combined on a single command line.
+
+VARIABLE EXPANSION
+     cmd expands environment variables with the %VAR% syntax.  Variable
+     names are case-insensitive on Unix, matching cmd.exe semantics.
+     The following special variables are always available:
+
+       %CD%        Current directory.
+       %DATE%      Current date.
+       %TIME%      Current time.
+       %ERRORLEVEL%  Exit code of the last command.
+       %0..%9      Batch file arguments.
+
+     Delayed expansion (%!VAR% syntax) is supported when /v:on is set.
+
+INTERNATIONALISATION
+     The user interface supports English and Simplified Chinese.  The
+     active language is determined at startup from the LC_ALL,
+     LC_MESSAGES, or LANG environment variables: a "zh" prefix selects
+     Chinese, anything else falls back to English.
+
+LINE EDITING
+     Interactive input uses the bundled linenoise library, providing
+     Emacs-style key bindings, history navigation (with persistent
+     storage in ~/.cmd_history), and tab completion for file names
+     and directory paths.
+
+AUTORUN
+     On startup, cmd scans the directory $PREFIX/etc/cmd/AutoRun/ for
+     executable files and runs each one as a batch script (sorted by
+     name).  This allows site-wide or user-specific initialisation
+     without modifying AUTOEXEC.BAT.  Use the /d switch to skip AutoRun.
+
+BUILDING
+
+     Modern Linux (GNU Make):
+       make
+       make install PREFIX=/usr/local
+
+     Generic Unix (including System V):
+       sh tbuild.sh
+       sh tbuild.sh CC=cc     # specify compiler
+       sh tbuild.sh V=0       # quiet build
+
+     The C source is written in C89 with no external dependencies beyond
+     a POSIX.1-1990 libc.  On System V targets, pass -DLIBCMD_SYSV to
+     enable the portability shims in lsysport.c, and -DLIBCMD_NO_VSNPRINTF
+     if your libc lacks vsnprintf(3).  The tbuild.sh script adds these
+     flags automatically.
+
+     The following tools are helpful during development:
+
+       sh tlint.sh    Check for files with names longer than 12 characters
+                      and files missing a trailing newline.
+
+       sh tpack.sh    Create a source archive for distribution.
+
+FILES
+     ~/.cmd_history   Command history (plain text, one command per line).
+     ~/.cmd_assoc     File extension associations (ASSOC / FTYPE).
+     $PREFIX/etc/cmd/AutoRun/  Scripts executed on startup.
+     AUTOEXEC.BAT     Startup script for COMMAND.COM.
+
+PORTABILITY
+     cmd is tested on:
+
+       GNU/Linux (glibc)
+       System V Release 4
+
+     The code is C89-compatible and avoids GNU extensions, designated
+     initialisers, and C99 types where possible.  Old System V targets
+     that lack fnmatch(3), settimeofday(2), setpriority(2), and
+     open_memstream(3) are supported through the portability layer in
+     lsysport.c.
+
+AUTHOR
+     ChenPi11
+
+LICENSE
+     GNU General Public License version 3 or later.  See the LICENSE
+     file for the full text.
+
+SEE ALSO
+     The original cmd.exe documentation on Microsoft Docs provides
+     detailed reference for each builtin command and batch language
+     feature.

@@ -1,0 +1,11 @@
+build/
+.marscode/
+cmd-*
+*.o
+a.out
+*.COM
+*.exe
+*.a
+*.tar
+*.tar.uu
+*.tar.xz

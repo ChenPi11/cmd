@@ -1,0 +1,734 @@
+zh_MS
+---
+
+MSG_BANNER_COPYRIGHT
+"巨硬 %s [版本%s]\r\n"
+"（c） 2026 - 陈皮11。所有左转预留。\r\n\r\n"
+---
+
+MSG_NOT_RECOGNIZED
+"'%s'既不识别为内部命令，也不是外部命令，\n"
+"可操作程序或批处理文件。"
+---
+
+MSG_TERMINATE_BATCH
+"终止批次任务（Y/N）？"
+---
+
+MSG_ON
+"开"
+---
+
+MSG_OFF
+"关掉"
+---
+
+MSG_ERR_FILE_NOT_FOUND
+"系统找不到指定的文件。"
+---
+
+MSG_ERR_PATH_NOT_FOUND
+"系统无法找到指定的路径。"
+---
+
+MSG_ERR_FILE_NOT_FOUND_NAMED
+"系统无法找到指定的文件：'%s'\n"
+---
+
+MSG_ERR_CANNOT_CREATE_FILE
+"系统无法创建文件 '%s'。"
+---
+
+MSG_ERR_LABEL_NOT_FOUND
+"系统无法找到指定的批次标签 - %s\n"
+---
+
+MSG_ERR_OPEN_BATCH
+"无法打开批处理文件 '%s'： %s\n"
+---
+
+MSG_ERR_CALL_DEPTH
+"脚本呼叫最大深度已超过。"
+---
+
+MSG_ERR_EXEC_FAILED
+"未能执行'%s'：%s\n"
+---
+
+MSG_ERR_COULD_NOT_FIND
+"找不到'%s'\n"
+---
+
+MSG_ERR_COULD_NOT_DELETE
+"找不到或删除'%s'\n"
+---
+
+MSG_ERR_RENAME
+"无法将'%s'改名为'%s'： %s\n"
+---
+
+MSG_ERR_DUPLICATE_NAME
+"存在重复的文件名，或者找不到该文件。\n"
+---
+
+MSG_ERR_ALREADY_EXISTS
+"子目录或文件'%s'已经存在。\n"
+---
+
+MSG_ERR_DIR_NOT_EMPTY
+"目录'%s'并非空的。\n"
+---
+
+MSG_ERR_ENV_NOT_DEFINED
+"环境变量未定义\n"
+---
+
+MSG_ERR_INVALID_COLOR
+"颜色属性无效。"
+---
+
+MSG_ERR_SET_DATE
+"系统无法设置日期：%s\n"
+---
+
+MSG_ERR_BAD_DATE
+"系统无法接受输入的日期。"
+---
+
+MSG_ERR_SET_TIME
+"系统无法设定时间：%s\n"
+---
+
+MSG_ERR_BAD_TIME
+"系统无法接受输入的时间。"
+---
+
+MSG_ERR_ASSOC_NOT_FOUND
+"扩展 %s 未找到文件关联"
+---
+
+MSG_ERR_ASSOC_UPDATE
+"ASSOC：未能更新协会\n"
+---
+
+MSG_ERR_CALL_LABEL_OUTSIDE
+"调用：label，用于批处理文件之外。"
+---
+
+MSG_ERR_CD_GETCWD
+"CD： 无法获取当前目录： %s\n"
+---
+
+MSG_ERR_COPY
+"将'%s'复制到'%s'\n时出现错误"
+---
+
+MSG_ERR_COPY_DETAIL
+"将'%s'复制到'%s'时出现错误：%s\n"
+---
+
+MSG_ERR_COPY_MISSING_SOURCE
+"复制：缺少源文件\n"
+---
+
+MSG_ERR_COPY_MISSING_DEST
+"复制：缺少目的地\n"
+---
+
+MSG_ERR_FOR_OPEN
+"FOR /F： 无法打开 '%s'\n"
+---
+
+MSG_ERR_FOR_EXTENSIONS
+"FOR：此选项需要启用命令扩展。\n"
+---
+
+MSG_ERR_FOR_SYNTAX
+"用于：语法错误\n"
+---
+
+MSG_ERR_FTYPE_NOT_FOUND
+"文件类型 '%s' 未找到。\n"
+---
+
+MSG_ERR_IF_SYNTAX
+"如果：语法错误\n"
+---
+
+MSG_ERR_IF_MISSING_CMD
+"如果：缺少指令\n"
+---
+
+MSG_ERR_MKLINK_MISSING
+"MKLINK：缺少链接名或目标\n"
+---
+
+MSG_ERR_MKLINK_NOT_DIR
+"MKLINK：当目标'%s'不是目录时，无法创建%s。\n"
+---
+
+MSG_ERR_MKLINK_HARD
+"无法创建硬链接'%s'：%s\n"
+---
+
+MSG_ERR_MKLINK_JUNCTION
+"无法创建交汇点'%s'： %s\n"
+---
+
+MSG_ERR_MKLINK_SYMLINK
+"无法创建符号链接'%s'： %s\n"
+---
+
+MSG_ERR_MOVE_REQUIRES
+"移动：需要来源和目的地。"
+---
+
+MSG_ERR_MOVE
+"将'%s'移到'%s'时出现错误：%s\n"
+---
+
+MSG_ERR_POPD_RESTORE
+"POPD： 无法恢复目录 '%s'： %s\n"
+---
+
+MSG_ERR_PUSHD_GETCWD
+"PUSHD： 无法获取当前目录\n"
+---
+
+MSG_ERR_PUSHD_OVERFLOW
+"PUSHD： 目录堆栈溢出\n"
+---
+
+MSG_ERR_PUSHD_CHANGE
+"PUSHD： 不能改为'%s'： %s\n"
+---
+
+MSG_ERR_SET_EXPR
+"SET： 无效表达\n"
+---
+
+MSG_ERR_SET_A_EXPR
+"SET /A：缺少表达\n"
+---
+
+MSG_ERR_SET_P_EQUALS
+"集合：/P argume 中缺少 '='nt\n"
+---
+
+MSG_ERR_SET_P_VAR
+"SET /P： 缺少变量=提示\n"
+---
+
+MSG_ERR_SETLOCAL_NESTING
+"SETLOCAL：已达到嵌套限制\n"
+---
+
+MSG_ERR_START_CHDIR
+"START：无法将目录更改为'%s'\n"
+---
+
+MSG_ERR_START_NOT_FOUND
+"开始：找不到'%s'\n"
+---
+
+MSG_ERR_START_FAILED
+"开始：失败启动'%s'\n"
+---
+
+MSG_ERR_START_NO_DISPLAY
+"开始：没有可用的图形显示（请设置 DISPLAY 或 WAYLAND_DISPLAY）\n"
+---
+
+MSG_ERR_VERIFY_ARG
+"验证必须是开或关。"
+---
+
+MSG_ASK_OVERWRITE
+"覆盖百分比？（Y/N）"
+---
+
+MSG_ASK_DELETE
+"%s，删除（Y/N）？"
+---
+
+MSG_ASK_RD_CONFIRM
+"%s，你确定吗（Y/N）？"
+---
+
+MSG_ASK_PRESS_KEY
+"按下任意键即可继续......"
+---
+
+MSG_ASK_PRESS_KEY_NL
+"\n按任意键继续......"
+---
+
+MSG_ASK_ENTER_DATE
+"新日期登场：（嗯-嗯-耶）"
+---
+
+MSG_ASK_ENTER_TIME
+"进入新时代："
+---
+
+MSG_INFO_ECHO_IS
+"回声是%s\n"
+---
+
+MSG_INFO_VERIFY_IS
+"VERIFY 是%s\n"
+---
+
+MSG_INFO_FILE_NOT_FOUND
+"未找到文件\n"
+---
+
+MSG_INFO_DIRECTORY_OF
+"%s\n\n"
+---
+
+MSG_INFO_FILES_TOTAL
+"%16ld 文件 %14ld 字节\n"
+---
+
+MSG_INFO_DIRS_TOTAL
+"%16ld Dir（s） %14ld bytes free\n"
+---
+
+MSG_INFO_TOTAL_FILES
+"\n列出的总文件：\n"
+---
+
+MSG_INFO_COPY_DONE
+"已复制1个文件。\n"
+---
+
+MSG_INFO_NO_PATH
+"无路\n"
+---
+
+MSG_INFO_CURRENT_DATE
+"当前日期是：%s %02d/%02d/%04d\n"
+---
+
+MSG_INFO_CURRENT_TIME
+"当前时间是：%02d：%02d：%02d.%02d\n"
+---
+
+MSG_INFO_VOLUME_LABEL
+"驱动器音量 / 是%s\n"
+---
+
+MSG_INFO_VOLUME_NO_LABEL
+"驱动器音量 / 无标签。"
+---
+
+MSG_INFO_VOLUME_SERIAL
+"卷序号为%04lX-%04lX\n"
+---
+
+MSG_INFO_DEL_QUIET
+"DEL：删除文件。"
+---
+
+MSG_OK_HARDLINK
+"为%s <<====>> %s\n创建的硬链接"
+---
+
+MSG_OK_JUNCTION
+"为%s <<===>> %s\n创建的交汇点"
+---
+
+MSG_OK_SYMLINK
+"为%s创建的符号链接<<===>>%s\n"
+---
+
+MSG_HELP_ASSOC
+"显示或修改文件扩展名关联。"
+"\n"
+"ASSOC [.ext[=[fileType]]\n"
+"\n"
+".ext 指定文件类型所需的文件扩展名。"
+"fileType 指定与扩展名关联的文件类型。\n"
+"\n"
+"输入无参数的ASSOC以显示当前文件关联。\n"
+---
+
+MSG_HELP_CALL
+"从另一个批处理程序调用一个批次程序。"
+"\n"
+"调用 [驱动器：][路径]文件名 [batch-parameters]\n"
+"\n"
+"批次参数 指定任何命令行信息，\n"
+"批次程序。"
+"\n"
+"如果启用了命令扩展，呼叫会变换如下：\n"
+"呼叫：标签论证\n"
+---
+
+MSG_HELP_CD
+"显示当前目录的名称或更改。\n"
+"\n"
+"CHDIR [/D] [驱动：][path]\n"
+"CHDIR [..]\n"
+"CD [/D] [驱动器：][路径]\n"
+"CD [..]\n"
+"\n"
+" ..指定你想更改到父目录。\n"
+"\n"
+"输入CD 驱动器：以显示指定驱动器中的当前目录。"
+"输入无参数的CD以显示当前驱动器和目录。"
+"\n"
+"用/D开关来更换电流驱动器，除了改变......"
+"当前硬盘目录\n"
+---
+
+MSG_HELP_CLS
+"清空屏幕。\n\nCLS\n"
+---
+
+MSG_HELP_COLOR
+"设置默认控制台的前景和背景颜色。"
+"\n"
+"颜色 [点]\n"
+"\n"
+"attr 指定控制台输出的颜色属性。"
+"\n"
+"颜色属性由两个十六进制数字表示：\n"
+"0=黑 1=蓝 2=绿 3=水/水"
+"4=红色 5=紫色 6=黄色 7=白色\n"
+"8=灰色 9=浅蓝色 A=浅绿色\n"
+"B=光色水绿色 C=光色红色\n"
+"D=浅紫色 E=浅黄色\n"
+"F=明亮的白人\n"
+"\n"
+"示例：COLOR fc（浅红上明亮的白色）\n"
+---
+
+MSG_HELP_COPY
+"将一个或多个文件复制到另一个位置。"
+"\n"
+"复制 [/D] [/V] [/N] [/Y |/-Y] [/Z] [/L] [/A | /B] 来源\n"
+"[+ 来源 [+ ...]][目的地]\n"
+"\n"
+"源代码 指定要复制的文件。"
+"destination 指定副本的目录和/或文件名。\n"
+"/Y 在覆盖现有文件时出现抑制提示。"
+"/-Y 提示，覆盖已有文件时出现。"
+---
+
+MSG_HELP_DATE
+"展示或定日期。"
+"\n"
+"日期 [/T |日期]\n"
+"\n"
+"输入无参数的日期以显示当前日期设置和\n"
+"一个新题的提示。按回车键保持同一日期。\n"
+"\n"
+"/T 显示当前日期，无需提示新日期。"
+---
+
+MSG_HELP_DEL
+"删除一个或多个文件。"
+"\n"
+"DEL [/P] [/F] [/S] [/Q] [/A[：属性]]] 名称\n"
+"删除 [/P] [/F] [/s] [/q] [/a[[：属性]]] 姓名\n"
+"\n"
+"名称 指定一个或多个文件或目录的列表。"
+"/P 在删除每个文件前提示确认。"
+"/F 强制删除只读文件。\n"
+"/S 从所有子目录中删除指定文件。"
+"/Q 静音模式，不要询问是否允许在全局万用卡上删除。"
+" /A 根据属性（D H R S A L，\n）选择删除文件"
+"前缀 - 排除）。"
+---
+
+MSG_HELP_DIR
+"显示目录中文件和子目录的列表。"
+"\n"
+"DIR [驱动器：][路径][文件名] [/B] [/D] [/L] [/n] [/o[排序顺序]]\n"
+" [/P] [/Q] [/S] [/T[timefield]] [/W] [/X] [/4] [/A[属性]]\n"
+"\n"
+" /A 显示具有指定属性的文件：D dirs，H 隐藏，\n"
+"R 只读，S 系统，A 档案，L 链接（前缀 - 排除）。\n"
+"/O 按文件排序列表：N 个名，S 大小，E 扩展，\n"
+"D日期/时间，G组指令先行（前缀-反向）。"
+"/T 控制显示的时间场：C 创建，最后访问，\n"
+"W 最后一次书写（默认）。\n"
+" /Q 显示文件所有者。\n"
+"/X 显示简短名称（Unix 不适用）。\n"
+"/4 显示四位数年份（默认）。\n"
+---
+
+MSG_HELP_DOSKEY
+"编辑命令行，调回 Windows 命令，并创建宏。"
+"\n"
+"DOSKEY [/宏] [/历史] [macroname=[commandline]]\n"
+"\n"
+" /MACROS 显示所有DOSKEY宏。\n"
+"/HISTORY 显示存储在内存中的所有命令。"
+"macroname 指定宏的名称。"
+"命令行指定要分配给宏的命令。"
+"$*扩展到所有参数，$1-$9扩展到编号参数，\n"
+"$T分离命令，$$ 是字面上的 $。"
+---
+
+MSG_HELP_ENDLOCAL
+"终止批处理文件中环境变更的本地化。"
+"\n"
+"结束本地化\n"
+---
+
+MSG_HELP_EXIT
+"退出CMD.EXE程序（命令解释器）或当前批处理脚本。\n"
+"\n"
+"退出 [/B] [退出代码]\n"
+"\n"
+" /B 指定退出当前批处理脚本，而不是 CMD.EXE.\n"
+"如果在批处理脚本之外执行，将退出CMD.EXE。\n"
+"出口代码指定一个数字。如果指定了 /B，则设置 ERRORLEVEL\n"
+"到这个号码。如果CMD.EXE退出，则设置进程退出代码\n"
+"用这个号码。"
+---
+
+MSG_HELP_FOR
+"为一组文件中的每个文件执行指定命令。"
+"\n"
+"对于%变量 IN （set） DO 命令 [command-parameters]\n"
+"FOR /D %变量 IN （set） DO 命令\n"
+"FOR /L %变量 IN （start， step， end） DO 命令\n"
+"FOR /F [\"options\"] %variable IN （file-set） DO 命令\n"
+"FOR /R [[驱动器：]path] %变量 IN （set） DO 命令\n"
+"\n"
+"%变量 一个单字母可替换参数。"
+"（集合）一个或多个的集合文件。\n"
+"命令 为每个文件执行的命令。"
+---
+
+MSG_HELP_FTYPE
+"显示或修改用于文件扩展名关联的文件类型。\n"
+"\n"
+"FTYPE [fileType[=[openCommandString]]]\n"
+"\n"
+"fileType 指定要检查或更改的文件类型。\n"
+"openCommandString 指定启动时要使用的 open 命令\n"
+"这种类型的文件。"
+---
+
+MSG_HELP_GOTO
+"引导cmd.exe到批处理程序中的标记行。\n"
+"\n"
+"GOTO标签\n"
+"\n"
+"标签 指定批处理程序中使用的文本字符串作为标签。"
+"\n"
+"输入GOTO ：EOF以将控制权转移到当前批处理脚本的末尾。"
+---
+
+MSG_HELP_IF
+"在批处理程序中执行条件处理。"
+"\n"
+"如果[不是]错误级别编号命令\n"
+"IF [NOT] string1==string2 命令\n"
+"如果[非] 存在 文件名命令\n"
+"IF [/I] string1 compare-op string2 命令\n"
+"如果[未] 定义变量命令\n"
+"\n"
+"compare-op： EQU NEQ LSS LEQ GTR GEQ\n"
+"/I：大小写无关字符串比较\n"
+---
+
+MSG_HELP_MD
+"创建目录。\n"
+"\n"
+"MKDIR [drive：]path\n"
+"MD [驱动：]path\n"
+---
+
+MSG_HELP_MKLINK
+"创造象征性的联系。"
+"\n"
+"MKLINK [[/D] |[/H] |[/J]]链接名目标\n"
+"\n"
+" /D 创建一个目录符号链接。默认是文件符号链接。\n"
+"/H 创建了硬链接，而非符号连接。"
+"/j 创建目录连接。\n"
+"链接名称指定新的符号链接名称。"
+"目标指定新链路所指的路径（相对或绝对）。"
+---
+
+MSG_HELP_MOVE
+"移动文件并重命名文件和目录。"
+"\n"
+"让开 [/y |/-Y] [驱动器：][path]filename1[,...] destination\n"
+"\n"
+"/Y 会抑制确认已存文件覆盖的提示。"
+" /-Y 导致确认覆盖现有文件的提示。\n"
+---
+
+MSG_HELP_PATH
+"显示或设置可执行文件的搜索路径。"
+"\n"
+"路径[[驱动：]路径[;...]]\n"
+"路径;\n"
+"\n"
+"类型 PATH ;清除所有搜索路径设置并指挥操作\n"
+"系统仅在当前目录中搜索。"
+"输入无参数的PATH以显示当前路径。"
+---
+
+MSG_HELP_POPD
+"PUSHD 命令存储的目录更改。"
+"\n"
+"POPD\n"
+---
+
+MSG_HELP_PROMPT
+"更改cmd.exe命令提示符。\n"
+"\n"
+"提示 [文本]\n"
+"\n"
+"文本指定一个新的命令提示符。"
+"\n"
+"提示词可以由普通字符和特殊代码组成：\n"
+"$A与$B |$C（$D日期\n"
+"$E 逃离 $F ） $G > $H 退格\n"
+"$L < $N开$P$Q路=\n"
+"$S空间$T时间$V版本$_换行\n"
+"$$ $ $+ 推深\n"
+---
+
+MSG_HELP_PUSHD
+"存储当前目录供 POPD 命令使用，然后\n"
+"对指定目录的更改。"
+"\n"
+"PUSHD [路径| ..]\n"
+"\n"
+"path 指定创建当前目录的目录。"
+---
+
+MSG_HELP_RD
+"移除（删除）一个目录。"
+"\n"
+"RMDIR [/s] [/q] [drive：]path\n"
+"RD [/s] [/Q] [drive：]path\n"
+"\n"
+" /S 除了目录本身，还移除所有目录\n"
+"以及指定目录中的文件。"
+"/Q 安静模式;不要询问是否可以移除带有 /S.\n 的目录树。"
+---
+
+MSG_HELP_REN
+"重命名文件或文件。"
+"\n"
+"重命名 [驱动器：][路径]filename1 filename2\n"
+"REN [驱动器：][path]filename1 filename2\n"
+"\n"
+"请注意，你不能为目标文件指定新的驱动器或路径。"
+"万能牌可以同时出现在两个名字里（'*'和'？'）。\n"
+---
+
+MSG_HELP_SET
+"显示、设置或移除cmd.exe环境变量。\n"
+"\n"
+"SET [变量=[字符串]]\n"
+"SET /A expes（预言）西恩\n"
+"SET /P 变量=[promptString]\n"
+"\n"
+"变量 指定环境变量名称。"
+"字符串指定一组字符以赋值变量。"
+"/表达式被评估为数值表达式。"
+" /P 将变量的值设置为用户输入的一行。"
+---
+
+MSG_HELP_SETLOCAL
+"开始在批处理文件中本地化环境变更。"
+"\n"
+"SETLOCAL [ENABLEEXTENSIONS |禁用扩展]\n"
+"[ENABLEDELAYEDEXPANSION |DISABLEELAYED扩展]\n"
+---
+
+MSG_HELP_SHIFT
+"改变批处理文件中可替换参数的位置。"
+"\n"
+"SHIFT [/n]\n"
+"\n"
+" /n 指定命令行参数以开始换位，\n"
+"其中n介于零到八之间。需要命令扩展。\n"
+---
+
+MSG_HELP_START
+"启动一个独立窗口以运行指定的程序或命令。"
+"\n"
+"开始 [\"标题\"] [/D 路径] [/B] [/等待] [/i]\n"
+"[/分钟] [/最大值] [/低] [/正常] [/高] [/实时]\n"
+"[/超常] [/低于正常]\n"
+"命令 [参数]\n"
+"\n"
+"/B 启动应用程序，无需创建新窗口。（Unix：默认）\n"
+" /WAIT 启动应用程序并等待其终止。"
+" /D 路径，在给定目录中启动应用程序。"
+"/我忽略了（环境在Unix上按现状继承）。\n"
+---
+
+MSG_HELP_TIME
+"显示或设置系统时间。"
+"\n"
+"时间 [/T |时间]\n"
+"\n"
+"输入无参数时间以显示当前时间设置，并且"
+"一个新题的提示。按回车键即可保持同一时间。\n"
+"\n"
+"/T 无需提示即可显示当前时间。"
+---
+
+MSG_HELP_TITLE
+"为命令提示符窗口设置窗口标题。"
+"\n"
+"标题[字符串]\n"
+"\n"
+"string 指定命令提示符窗口的标题。"
+"如果没有给出任何条件，头衔即被清除。"
+---
+
+MSG_HELP_TYPE
+"显示文本文件的内容。"
+"\n"
+"类型 [驱动器：][路径]文件名\n"
+---
+
+MSG_HELP_VERIFY
+"告诉cmd.exe是否要验证你的文件是否正确写入\n"
+"到一个磁盘上。"
+"\n"
+"请验证[在|关闭]\n"
+"\n"
+"输入无参数的VERIFY 以显示当前的VERIFY 设置。"
+---
+
+MSG_HELP_VOL
+"显示磁盘卷标签和序列号（如果存在的话）。\n"
+"\n"
+"VOL [驱动器：]\n"
+---
+
+MSG_HELP_CMD
+"启动一个新的命令解释器实例。"
+"\n"
+"CMD [/C|/K] [/S] [/Q] [/D] [/A|/U] [/T：{<b><f>|<f>}]\n"
+"[/E：{ON|关闭}] [/F：{ON|关闭}] [/V：{ON|关闭}] [字符串]\n"
+"\n"
+" /C 执行字符串指定的命令，然后退出。\n"
+" /K 执行字符串指定的命令并继续运行。"
+"/S 修改字符串在 /C 或 /K 之后的处理。\n"
+"/Q 关闭回声。"
+"/D 禁止执行自动运行命令。\n"
+"/A 输出格式：ANSI.\n"
+"/U 输出格式：Unicode（未完全支持）。\n"
+"/T：{<b><f>|<f>} 设定前景/背景色。\n"
+" /E：ON 启用命令扩展（默认）。\n"
+" /E：OFF 禁用命令扩展。\n"
+" /F：ON 启用文件和目录名补全功能。\n"
+" /F：OFF 禁用文件和目录名补全（默认）。\n"
+"/V：ON 启用延迟环境变量扩展。\n"
+" /V：OFF 禁用延迟环境变量扩展（默认）。\n"
