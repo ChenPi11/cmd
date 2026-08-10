@@ -265,23 +265,29 @@ static int for_r_walk(cmd_context_t *ctx, char var, const char *do_cmd,
                 break;
         } else {
             for (i = 0; patterns[i]; i++) {
-                libcmd_glob_result_t gr;
-                char pat[CMD_MAX_PATH * 2];
+                const char *pat = patterns[i];
 
-                if (libcmd_sprintf_s(pat, sizeof(pat), "%s/%s",
-                                     dir, patterns[i]) < 0)
-                    continue;
-
-                if (libcmd_glob(pat, &gr) == 0) {
-                    size_t j;
-                    for (j = 0; j < gr.count; j++) {
-                        if (strcmp(gr.paths[j], full) == 0) {
-                            ret = run_with_var(ctx, do_cmd, var, full);
-                            if (ctx->stop_batch || ctx->should_exit) break;
-                            break;
-                        }
+                /* A pattern without a path separator matches the bare
+                 * file name; one with a separator is matched against
+                 * the full path.  Strip a leading "./" on both sides
+                 * so a "." root behaves like any other directory
+                 * (libcmd_glob() normalizes that prefix away, which is
+                 * why comparing against the raw "full" silently matched
+                 * nothing). */
+                if (strchr(pat, '/') == NULL) {
+                    if (libcmd_fnmatch(pat, ent.name) == 0) {
+                        ret = run_with_var(ctx, do_cmd, var, full);
+                        if (ctx->stop_batch || ctx->should_exit) break;
                     }
-                    libcmd_glob_free(&gr);
+                } else {
+                    const char *p = pat;
+                    const char *f = full;
+                    while (p[0] == '.' && p[1] == '/') p += 2;
+                    while (f[0] == '.' && f[1] == '/') f += 2;
+                    if (libcmd_fnmatch(p, f) == 0) {
+                        ret = run_with_var(ctx, do_cmd, var, full);
+                        if (ctx->stop_batch || ctx->should_exit) break;
+                    }
                 }
                 if (ctx->stop_batch || ctx->should_exit) break;
             }

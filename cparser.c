@@ -620,6 +620,14 @@ static int exec_simple(cmd_context_t *ctx, cmd_node_t *node,
                         stdin_fd, stdout_fd, stderr_fd);
 }
 
+/* Windows maps the reserved device name NUL to the null device. */
+static const char *redir_path(const char *file)
+{
+    if (file && libcmd_strcasecmp(file, "nul") == 0)
+        return "/dev/null";
+    return file;
+}
+
 /* Apply redirections of one node to the real standard fds (0/1/2).
  * Returns 0 on success, -1 on open failure (an error message is
  * printed).  Used for top-level redirections and inside pipeline
@@ -633,7 +641,7 @@ static int apply_redirs(cmd_redir_t *redirs)
 
         switch (r->type) {
         case REDIR_IN:
-            fd = libcmd_open(r->file, LIBCMD_O_RDONLY, 0);
+            fd = libcmd_open(redir_path(r->file), LIBCMD_O_RDONLY, 0);
             if (fd < 0) {
                 fprintf(stderr, "%s",
                         cmd_gettext(MSG_ERR_FILE_NOT_FOUND));
@@ -643,7 +651,7 @@ static int apply_redirs(cmd_redir_t *redirs)
             libcmd_close(fd);
             break;
         case REDIR_OUT:
-            fd = libcmd_open(r->file,
+            fd = libcmd_open(redir_path(r->file),
                              LIBCMD_O_WRONLY | LIBCMD_O_CREAT | LIBCMD_O_TRUNC,
                              0644);
             if (fd < 0) {
@@ -655,7 +663,7 @@ static int apply_redirs(cmd_redir_t *redirs)
             libcmd_close(fd);
             break;
         case REDIR_APPEND:
-            fd = libcmd_open(r->file,
+            fd = libcmd_open(redir_path(r->file),
                              LIBCMD_O_WRONLY | LIBCMD_O_CREAT | LIBCMD_O_APPEND,
                              0644);
             if (fd < 0) {
@@ -667,7 +675,7 @@ static int apply_redirs(cmd_redir_t *redirs)
             libcmd_close(fd);
             break;
         case REDIR_ERR:
-            fd = libcmd_open(r->file,
+            fd = libcmd_open(redir_path(r->file),
                              LIBCMD_O_WRONLY | LIBCMD_O_CREAT | LIBCMD_O_TRUNC,
                              0644);
             if (fd < 0) {
@@ -679,7 +687,7 @@ static int apply_redirs(cmd_redir_t *redirs)
             libcmd_close(fd);
             break;
         case REDIR_ERR_APP:
-            fd = libcmd_open(r->file,
+            fd = libcmd_open(redir_path(r->file),
                              LIBCMD_O_WRONLY | LIBCMD_O_CREAT | LIBCMD_O_APPEND,
                              0644);
             if (fd < 0) {
@@ -695,7 +703,7 @@ static int apply_redirs(cmd_redir_t *redirs)
             break;
         case REDIR_OUT_ERR:
         case REDIR_OUT_ERR_APP:
-            fd = libcmd_open(r->file,
+            fd = libcmd_open(redir_path(r->file),
                              (r->type == REDIR_OUT_ERR)
                                  ? LIBCMD_O_WRONLY | LIBCMD_O_CREAT | LIBCMD_O_TRUNC
                                  : LIBCMD_O_WRONLY | LIBCMD_O_CREAT | LIBCMD_O_APPEND,
@@ -883,6 +891,12 @@ int cmd_exec_node(cmd_context_t *ctx, cmd_node_t *node)
         ret = exec_node_fds(ctx, node, LIBCMD_STDIN_FILENO,
                             LIBCMD_STDOUT_FILENO, LIBCMD_STDERR_FILENO);
     }
+
+    /* Flush stdio buffers while the redirected fds are still in place.
+     * Builtins run in-process and write through stdio buffering; without
+     * this the data lands on the original stdout after the fds are
+     * restored (see bug: `echo hi > file` produced an empty file). */
+    fflush(NULL);
 
     /* Restore original fds */
     if (old_stdin  >= 0) { libcmd_dup2(old_stdin,  LIBCMD_STDIN_FILENO);  libcmd_close(old_stdin);  }
