@@ -119,20 +119,11 @@ static int eval_condition(cmd_context_t *ctx, int argc, char **argv, int *argi, 
         int result = 0;
         int numeric = 0;
 
-        if (*argi >= argc)
-            return -1;
-        op = argv[(*argi)++];
-        if (*argi >= argc)
-            return -1;
-        s2 = argv[(*argi)++];
-
-        /* Check if this is the "==" form embedded in s1: "A==B" */
+        /*"==" form: s1 is "str1==str2" */
         {
             const char *eq = strstr(s1, "==");
             if (eq)
             {
-                /* s1="str1==str2" arrived as one token (quotes and
-                 * spaces stripped by the lexer) */
                 char lhs[256], rhs[256];
                 size_t llen = (size_t)(eq - s1);
                 if (llen >= sizeof(lhs))
@@ -141,11 +132,16 @@ static int eval_condition(cmd_context_t *ctx, int argc, char **argv, int *argi, 
                 lhs[llen] = '\0';
                 libcmd_sprintf_s(rhs, sizeof(rhs), "%s", eq + 2);
                 result = case_insensitive ? (libcmd_strcasecmp(lhs, rhs) == 0) : (strcmp(lhs, rhs) == 0);
-                /* We consumed the wrong thing; back up */
-                (*argi) -= 2;
                 return negate ? !result : result;
             }
         }
+
+        if (*argi >= argc)
+            return -1;
+        op = argv[(*argi)++];
+        if (*argi >= argc)
+            return -1;
+        s2 = argv[(*argi)++];
 
         /* Check if op contains == (e.g. the token "==") */
         if (strcmp(op, "==") == 0)
@@ -205,18 +201,29 @@ static int eval_condition(cmd_context_t *ctx, int argc, char **argv, int *argi, 
 /*
  * Reconstruct a command string from argv[argi .. argc-1]
  */
-static char *rebuild_cmd(int argc, char **argv, int argi)
+static char *rebuild_range(int argc, char **argv, int from, int to)
 {
     char buf[CMD_MAX_LINE];
     int i;
+    (void)argc;
     buf[0] = '\0';
-    for (i = argi; i < argc; i++)
+    for (i = from; i < to; i++)
     {
-        if (i > argi)
+        int quote = argv[i][0] == '\0' || strpbrk(argv[i], " \t&|<>()^") != NULL;
+        if (i > from)
             strncat(buf, " ", sizeof(buf) - strlen(buf) - 1);
+        if (quote)
+            strncat(buf, "\"", sizeof(buf) - strlen(buf) - 1);
         strncat(buf, argv[i], sizeof(buf) - strlen(buf) - 1);
+        if (quote)
+            strncat(buf, "\"", sizeof(buf) - strlen(buf) - 1);
     }
     return libcmd_strdup(buf);
+}
+
+static char *rebuild_cmd(int argc, char **argv, int argi)
+{
+    return rebuild_range(argc, argv, argi, argc);
 }
 
 int builtin_if(cmd_context_t *ctx, int argc, char **argv)
@@ -266,19 +273,7 @@ int builtin_if(cmd_context_t *ctx, int argc, char **argv)
             if (libcmd_strcasecmp(argv[i], "ELSE") == 0)
             {
                 else_start = i + 1;
-                /* Build then_cmd from argi .. i-1 */
-                {
-                    char buf[CMD_MAX_LINE];
-                    int j;
-                    buf[0] = '\0';
-                    for (j = then_start; j < i; j++)
-                    {
-                        if (j > then_start)
-                            strncat(buf, " ", sizeof(buf) - strlen(buf) - 1);
-                        strncat(buf, argv[j], sizeof(buf) - strlen(buf) - 1);
-                    }
-                    then_cmd = libcmd_strdup(buf);
-                }
+                then_cmd = rebuild_range(argc, argv, then_start, i);
                 if (else_start < argc)
                     else_cmd = rebuild_cmd(argc, argv, else_start);
                 break;
