@@ -127,6 +127,11 @@ const cmd_builtin_t *cmd_find_builtin(const char *name)
         if (libcmd_strcasecmp(name, b->name) == 0)
             return b;
     }
+
+    /* ECHO. ECHO: ECHO; ... - the delimiter ends the command name */
+    if (libcmd_strncasecmp(name, "echo", 4) == 0 &&
+        strchr(".:;,=[]+", name[4]) != NULL && name[4] != '\0')
+        return cmd_find_builtin("echo");
     return NULL;
 }
 

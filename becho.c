@@ -16,6 +16,18 @@
 
 int builtin_echo(cmd_context_t *ctx, int argc, char **argv)
 {
+    /* ECHO.text / ECHO:text ...: the text follows the delimiter directly */
+    if (strlen(argv[0]) > 4) {
+        int i;
+        fputs(argv[0] + 5, stdout);
+        for (i = 1; i < argc; i++) {
+            fputc(' ', stdout);
+            fputs(argv[i], stdout);
+        }
+        fputc('\n', stdout);
+        return 0;
+    }
+
     if (argc <= 1) {
         /* Print current echo state */
         printf(cmd_gettext(MSG_INFO_ECHO_IS), ctx->echo ? cmd_gettext(MSG_ON) : cmd_gettext(MSG_OFF));

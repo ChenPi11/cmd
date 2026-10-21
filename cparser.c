@@ -136,6 +136,7 @@ static char *read_word(lexer_t *l)
     char buf[CMD_MAX_LINE];
     int  bpos  = 0;
     int  in_quote = 0;
+    int  was_quoted = 0;
     int  c;
 
     lexer_skip_spaces(l);
@@ -156,6 +157,7 @@ static char *read_word(lexer_t *l)
         if (!in_quote) {
             if (c == '"') {
                 in_quote = 1;
+                was_quoted = 1;
                 lexer_get(l);
                 continue;
             }
@@ -187,7 +189,7 @@ static char *read_word(lexer_t *l)
             buf[bpos++] = (char)c;
     }
 
-    if (bpos == 0)
+    if (bpos == 0 && !was_quoted)
         return NULL;
 
     buf[bpos] = '\0';
