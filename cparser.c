@@ -744,6 +744,47 @@ static int collect_pipe_stages(cmd_node_t *node, cmd_node_t **stages, int max)
     return n;
 }
 
+/* Rebuild a stage's token line for a "self /C <stage>" replay.  Tokens
+ * that contain blanks get re-quoted; everything else passes verbatim
+ * (the tokens were de-quoted when the line was first parsed).
+ * Returns a malloc'd string, or NULL on allocation failure. */
+static char *join_stage_line(char *const argv[])
+{
+    size_t need;
+    char *buf;
+    char *w;
+    int i;
+
+    need = 1;
+    for (i = 0; argv[i] != NULL; i++)
+        need += strlen(argv[i]) + 4;
+
+    buf = (char *)malloc(need);
+    if (buf == NULL)
+        return NULL;
+
+    buf[0] = '\0';
+    w = buf;
+    for (i = 0; argv[i] != NULL; i++) {
+        const char *s;
+        int quoted;
+
+        if (i > 0)
+            *w++ = ' ';
+
+        quoted = (strchr(argv[i], ' ') != NULL ||
+                  strchr(argv[i], '\t') != NULL);
+        if (quoted)
+            *w++ = '\"';
+        for (s = argv[i]; *s != '\0'; s++)
+            *w++ = *s;
+        if (quoted)
+            *w++ = '\"';
+    }
+    *w = '\0';
+    return buf;
+}
+
 static int exec_node_fds(cmd_context_t *ctx, cmd_node_t *node,
                          int stdin_fd, int stdout_fd, int stderr_fd)
 {
@@ -767,6 +808,99 @@ static int exec_node_fds(cmd_context_t *ctx, cmd_node_t *node,
          * inside a pipeline do not persist), with pipes between them. */
         cmd_node_t *stages[64];
         int n = collect_pipe_stages(node, stages, 64);
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+        int prev_read = stdin_fd;
+        int pids[64];
+        int failed;
+        libcmd_exit_info_t ei;
+        int i, j;
+
+        if (n <= 0)
+            return 1;
+
+        /* No fork here: cmd.exe runs every section of a pipeline in
+         * its own process, so each stage becomes one fresh instance
+         * of this shell ("self /C <stage>"), wired together with real
+         * CRT pipes.  Redirects attached to the stage nodes are not
+         * carried over; the token line is replayed instead. */
+        failed = 0;
+        for (i = 0; i < n; i++) {
+            int fds[2] = { -1, -1 };
+            char *cargv[4];
+            char *joined = NULL;
+            int pid;
+            int wout;
+            int j;
+
+            if (failed) {
+                if (fds[0] >= 0) libcmd_close(fds[0]);
+                if (fds[1] >= 0) libcmd_close(fds[1]);
+            }
+
+            if (i + 1 < n) {
+                if (libcmd_pipe(fds) < 0) {
+                    failed = 1;
+                    continue;
+                }
+            }
+
+            wout = (i + 1 < n) ? fds[1] : stdout_fd;
+
+            fflush(NULL);
+
+            cargv[0] = (char *)libcmd_get_self_path();
+            if (cargv[0] == NULL || cargv[0][0] == '\0') {
+                if (fds[0] >= 0) libcmd_close(fds[0]);
+                if (fds[1] >= 0) libcmd_close(fds[1]);
+                failed = 1;
+                continue;
+            }
+            joined = join_stage_line(stages[i]->argv);
+            cargv[1] = (char *)"/C";
+            cargv[2] = joined;
+            cargv[3] = NULL;
+
+            pid = (joined != NULL)
+                      ? libcmd_exec_async(cargv[0], cargv,
+                                          libcmd_get_environ(), prev_read,
+                                          wout, stderr_fd, 0)
+                      : -1;
+            free(joined);
+
+            if (pid < 0) {
+                if (fds[0] >= 0) libcmd_close(fds[0]);
+                if (fds[1] >= 0) libcmd_close(fds[1]);
+                failed = 1;
+                continue;
+            }
+
+            pids[i] = pid;
+
+            /* Drop our inherited copies: the write end must go or the
+             * next stage never sees EOF, and the previous pipe's read
+             * end keeps a handle until the next stage was started. */
+            if (i + 1 < n)
+                libcmd_close(fds[1]);
+            if (i > 0)
+                libcmd_close(prev_read);
+            if (i + 1 < n)
+                prev_read = fds[0];
+        }
+
+        /* Reap what was spawned, even on failure; the pipeline's exit
+         * code is the last stage's. */
+        if (failed) {
+            for (j = 0; j < i; j++)
+                libcmd_wait_pid(pids[j], &ei);
+            return 1;
+        }
+        ret = 0;
+        for (i = 0; i < n; i++) {
+            if (libcmd_wait_pid(pids[i], &ei) == 0 && i == n - 1)
+                ret = ei.exit_code;
+        }
+        break;
+#else
         int prev_read = stdin_fd;
         int pids[64];
         int i;
@@ -846,6 +980,7 @@ static int exec_node_fds(cmd_context_t *ctx, cmd_node_t *node,
                 ret = ei.exit_code;
         }
         break;
+#endif
     }
 
     case NODE_AND:

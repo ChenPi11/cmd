@@ -284,6 +284,12 @@ int libcmd_is_executable_file(const char *path)
 int libcmd_shell_open(const char *path, int wait,
                       libcmd_exit_info_t *exit_info)
 {
+    return libcmd_shell_open_n(path, wait, exit_info, LIBCMD_SHOW_NORMAL);
+}
+
+int libcmd_shell_open_n(const char *path, int wait,
+                        libcmd_exit_info_t *exit_info, int n_show)
+{
     SHELLEXECUTEINFOA sei;
 
     if (path == NULL)
@@ -293,7 +299,7 @@ int libcmd_shell_open(const char *path, int wait,
     sei.cbSize   = sizeof(sei);
     sei.fMask    = wait ? (SEE_MASK_NOCLOSEPROCESS | SEE_MASK_FLAG_DDEWAIT)
                         : SEE_MASK_FLAG_DDEWAIT;
-    sei.nShow    = SW_SHOWNORMAL;
+    sei.nShow    = (WORD)(n_show ? n_show : SW_SHOWNORMAL);
     sei.lpFile   = path;
 
     if (!ShellExecuteExA(&sei))

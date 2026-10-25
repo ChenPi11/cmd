@@ -432,6 +432,15 @@ int libcmd_is_executable_file(const char *path);
 int libcmd_shell_open(const char *path, int wait,
                       libcmd_exit_info_t *exit_info);
 
+/*
+ * libcmd_shell_open_n - libcmd_shell_open with a window state applied
+ * (START /MIN and /MAX).  n_show is one of the LIBCMD_SHOW_* values;
+ * Windows passes it to ShellExecute, Unix ignores it.
+ * Returns 0 on success, -1 on error.
+ */
+int libcmd_shell_open_n(const char *path, int wait,
+                        libcmd_exit_info_t *exit_info, int n_show);
+
 /* -------------------------------------------------------------------------
  * Directory iteration
  * ---------------------------------------------------------------------- */
@@ -592,6 +601,34 @@ int libcmd_wait_pid(int pid, libcmd_exit_info_t *exit_info);
  * Returns the child PID on success, -1 on error.
  */
 int libcmd_exec_console(char *const argv[], char *const envp[]);
+
+/*
+ * Window state for new-console spawns and ShellExecute opens
+ * (START /MIN and /MAX).  The values mirror the Win32 SW_* constants
+ * that matter here so implementations can pass them through.
+ */
+#define LIBCMD_SHOW_NORMAL      1
+#define LIBCMD_SHOW_MINIMIZED   2
+#define LIBCMD_SHOW_MAXIMIZED   3
+
+/*
+ * libcmd_exec_console_ex - libcmd_exec_console with START's window
+ * state and scheduling level applied:
+ *   show_cmd  : LIBCMD_SHOW_NORMAL / _MINIMIZED / _MAXIMIZED (/MIN /MAX)
+ *   nice_level: the scheduling level builtin_start derives from
+ *               /LOW /BELOWNORMAL /NORMAL /ABOVENORMAL /HIGH /REALTIME;
+ *               0 (NORMAL) leaves the priority untouched.
+ * If argv[0] contains a directory separator it is treated as a
+ * resolved disk program and spawned directly (no COMSPEC wrapper:
+ * window state and priority then apply to the program itself, and
+ * GUI programs get no host console).
+ * Unix: both extra parameters are treated best-effort (the terminal
+ * emulator receives the nice level, the window state cannot be
+ * honoured), and libcmd_exec_console's fallback behaviour applies.
+ * Returns the child PID on success, -1 on error.
+ */
+int libcmd_exec_console_ex(char *const argv[], char *const envp[],
+                           int show_cmd, int nice_level);
 
 /*
  * libcmd_set_process_priority - set the calling process's scheduling

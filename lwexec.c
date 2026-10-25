@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <io.h>
 
 /* -------------------------------------------------------------------------
  * Internal helpers
@@ -28,9 +29,39 @@ static void fill_exit_info(DWORD exit_code, libcmd_exit_info_t *info)
     info->signal    = 0;
 }
 
+/* Resolve a child's stdio slot: fd >= 0 is an existing CRT file
+ * descriptor in this process (POSIX dup2 semantics -- a file, a pipe
+ * end or plain stdio), so the child writes the same underlying OS
+ * handle; fd < 0 forwards this process's own standard handle. */
+static HANDLE std_handle_for(int fd, DWORD std_slot)
+{
+    if (fd >= 0)
+        return (HANDLE)_get_osfhandle(fd);
+    return GetStdHandle(std_slot);
+}
+
 /* -------------------------------------------------------------------------
  * Public API
  * ---------------------------------------------------------------------- */
+
+/* Map the START scheduling level to a Windows priority class.  The
+ * levels are the plain nice() numbers builtin_start assigns
+ * (/LOW 19, /BELOWNORMAL 5, /NORMAL 0, /ABOVENORMAL -5, /HIGH -10,
+ * /REALTIME -20); NORMAL maps to no extra creation flag. */
+static DWORD win_priority_class(int nice_level)
+{
+    if (nice_level <= -20)
+        return REALTIME_PRIORITY_CLASS;
+    if (nice_level <= -10)
+        return HIGH_PRIORITY_CLASS;
+    if (nice_level <= -5)
+        return ABOVE_NORMAL_PRIORITY_CLASS;
+    if (nice_level >= 19)
+        return IDLE_PRIORITY_CLASS;
+    if (nice_level >= 5)
+        return BELOW_NORMAL_PRIORITY_CLASS;
+    return 0;   /* NORMAL_PRIORITY_CLASS (the default) */
+}
 
 int libcmd_exec_sync(const char *path,
                      char *const argv[],
@@ -44,15 +75,22 @@ int libcmd_exec_sync(const char *path,
     STARTUPINFOA si;
     PROCESS_INFORMATION pi;
     char cmd_line[32768];
-    DWORD creation_flags = CREATE_NO_WINDOW;
-    HANDLE hStdin = NULL, hStdout = NULL, hStderr = NULL;
-    HANDLE hStdinRead = NULL, hStdoutWrite = NULL, hStderrWrite = NULL;
+    DWORD creation_flags;
     DWORD wait_result;
     DWORD exit_code;
+    int redirected;
     int i;
 
     if (path == NULL)
         return -1;
+
+    redirected = (stdin_fd >= 0 || stdout_fd >= 0 || stderr_fd >= 0);
+
+    /* While the stdio streams are redirected the child stays unseen;
+     * otherwise it shares this console so that its output is visible
+     * where the shell's own output goes. */
+    creation_flags = redirected ? CREATE_NO_WINDOW : 0;
+    creation_flags |= win_priority_class(nice_level);
 
     /* Build command line from argv */
     cmd_line[0] = '\0';
@@ -71,63 +109,33 @@ int libcmd_exec_sync(const char *path,
         }
     }
 
-    /* Setup stdio redirection if needed */
-    if (stdin_fd >= 0 || stdout_fd >= 0 || stderr_fd >= 0) {
-        SECURITY_ATTRIBUTES sa;
-        sa.nLength = sizeof(SECURITY_ATTRIBUTES);
-        sa.bInheritHandle = TRUE;
-        sa.lpSecurityDescriptor = NULL;
-
-        if (stdin_fd >= 0) {
-            CreatePipe(&hStdinRead, &hStdin, &sa, 0);
-            SetHandleInformation(hStdin, HANDLE_FLAG_INHERIT, 0);
-        }
-        if (stdout_fd >= 0) {
-            CreatePipe(&hStdout, &hStdoutWrite, &sa, 0);
-            SetHandleInformation(hStdout, HANDLE_FLAG_INHERIT, 0);
-        }
-        if (stderr_fd >= 0) {
-            CreatePipe(&hStderr, &hStderrWrite, &sa, 0);
-            SetHandleInformation(hStderr, HANDLE_FLAG_INHERIT, 0);
-        }
-    }
-
-    /* Initialize structures */
+    /* Initialize structures: fd >= 0 means "put the child's stream on
+     * the OS handle behind that CRT fd (POSIX dup2 semantics)" --
+     * files and pipe ends opened/dup2'd by the caller keep working
+     * without any in-between pumping. */
     ZeroMemory(&si, sizeof(si));
     si.cb = sizeof(si);
-    if (stdin_fd >= 0) si.hStdInput = hStdinRead;
-    if (stdout_fd >= 0) si.hStdOutput = hStdoutWrite;
-    if (stderr_fd >= 0) si.hStdError = hStderrWrite;
-    if (stdin_fd >= 0 || stdout_fd >= 0 || stderr_fd >= 0)
+    if (redirected) {
+        si.hStdInput  = std_handle_for(stdin_fd,  STD_INPUT_HANDLE);
+        si.hStdOutput = std_handle_for(stdout_fd, STD_OUTPUT_HANDLE);
+        si.hStdError  = std_handle_for(stderr_fd, STD_ERROR_HANDLE);
         si.dwFlags |= STARTF_USESTDHANDLES;
+    }
 
     ZeroMemory(&pi, sizeof(pi));
 
-    /* Create process */
+    /* Create process: inherit handles so the stdio mapping above
+     * reaches the child. */
     if (!CreateProcessA(path, cmd_line, NULL, NULL, TRUE,
                         creation_flags, NULL, NULL, &si, &pi)) {
-        if (hStdinRead) CloseHandle(hStdinRead);
-        if (hStdin) CloseHandle(hStdin);
-        if (hStdoutWrite) CloseHandle(hStdoutWrite);
-        if (hStdout) CloseHandle(hStdout);
-        if (hStderrWrite) CloseHandle(hStderrWrite);
-        if (hStderr) CloseHandle(hStderr);
         return -1;
     }
-
-    /* Close parent's ends of pipes */
-    if (hStdinRead) CloseHandle(hStdinRead);
-    if (hStdoutWrite) CloseHandle(hStdoutWrite);
-    if (hStderrWrite) CloseHandle(hStderrWrite);
 
     /* Wait for process to complete */
     wait_result = WaitForSingleObject(pi.hProcess, INFINITE);
     if (wait_result == WAIT_FAILED) {
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
-        if (hStdin) CloseHandle(hStdin);
-        if (hStdout) CloseHandle(hStdout);
-        if (hStderr) CloseHandle(hStderr);
         return -1;
     }
 
@@ -138,9 +146,6 @@ int libcmd_exec_sync(const char *path,
     /* Cleanup */
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
-    if (hStdin) CloseHandle(hStdin);
-    if (hStdout) CloseHandle(hStdout);
-    if (hStderr) CloseHandle(hStderr);
 
     return 0;
 }
@@ -156,11 +161,16 @@ int libcmd_exec_async(const char *path,
     STARTUPINFOA si;
     PROCESS_INFORMATION pi;
     char cmd_line[32768];
-    DWORD creation_flags = CREATE_NEW_CONSOLE;
+    DWORD creation_flags;
     int i;
 
     if (path == NULL)
         return -1;
+
+    /* START /B shares this console with the child (real cmd.exe's
+     * behaviour); no new console and no hidden window.  The priority
+     * class from /LOW.. /REALTIME rides in the same flag set. */
+    creation_flags = win_priority_class(nice_level);
 
     /* Build command line from argv */
     cmd_line[0] = '\0';
@@ -181,10 +191,18 @@ int libcmd_exec_async(const char *path,
     /* Initialize structures */
     ZeroMemory(&si, sizeof(si));
     si.cb = sizeof(si);
+    if (stdin_fd >= 0 || stdout_fd >= 0 || stderr_fd >= 0) {
+        si.hStdInput  = std_handle_for(stdin_fd,  STD_INPUT_HANDLE);
+        si.hStdOutput = std_handle_for(stdout_fd, STD_OUTPUT_HANDLE);
+        si.hStdError  = std_handle_for(stderr_fd, STD_ERROR_HANDLE);
+        si.dwFlags |= STARTF_USESTDHANDLES;
+    }
     ZeroMemory(&pi, sizeof(pi));
 
     /* Create process */
-    if (!CreateProcessA(path, cmd_line, NULL, NULL, FALSE,
+    if (!CreateProcessA(path, cmd_line, NULL, NULL,
+                        (stdin_fd >= 0 || stdout_fd >= 0 || stderr_fd >= 0)
+                            ? TRUE : FALSE,
                         creation_flags, NULL, NULL, &si, &pi)) {
         return -1;
     }
@@ -382,11 +400,19 @@ int libcmd_fork(void)
 
 int libcmd_exec_console(char *const argv[], char *const envp[])
 {
+    return libcmd_exec_console_ex(argv, envp, LIBCMD_SHOW_NORMAL, 0);
+}
+
+int libcmd_exec_console_ex(char *const argv[], char *const envp[],
+                           int show_cmd, int nice_level)
+{
     STARTUPINFOA si;
     PROCESS_INFORMATION pi;
     char cmdline[32768];
     char comspec[1024];
     char *arg_str;
+    DWORD creation_flags;
+    int direct_spawn;
     int i;
 
     (void)envp;
@@ -398,41 +424,75 @@ int libcmd_exec_console(char *const argv[], char *const envp[])
     si.cb = sizeof(si);
     ZeroMemory(&pi, sizeof(pi));
 
+    /* Requested window state (START /MIN and /MAX) for the new
+     * console.  Values arrive as Win32 SW_* constants. */
+    if (show_cmd != LIBCMD_SHOW_NORMAL) {
+        si.dwFlags |= STARTF_USESHOWWINDOW;
+        si.wShowWindow = (WORD)show_cmd;
+    }
+
+    creation_flags = CREATE_NEW_CONSOLE | win_priority_class(nice_level);
+
     /* No command: open a plain new console running the shell itself */
     if (argv == NULL || argv[0] == NULL || argv[0][0] == '\0')
     {
         if (!CreateProcessA(comspec, NULL, NULL, NULL, FALSE,
-                            CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi))
+                            creation_flags, NULL, NULL, &si, &pi))
             return -1;
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
         return (int)pi.dwProcessId;
     }
 
-    /* Otherwise the command runs inside "COMSPEC /D /C <args>": the cmd
-     * wrapper makes external executables, builtins and batch files all
-     * work through one path.  Quoting matches the helpers above. */
+    /* An argv[0] carrying a directory separator is a resolved disk
+     * path: spawn the program itself, exactly like real cmd.exe's
+     * START does for external commands.  The window state and the
+     * priority then apply to the program, and GUI programs get no
+     * host cmd console.  Anything else (builtin names, batch and
+     * script files) is wrapped in "COMSPEC /D /C" so every form
+     * still runs through one path. */
+    direct_spawn = (strchr(argv[0], '\\') != NULL ||
+                    strchr(argv[0], '/') != NULL);
+
     cmdline[0] = '\0';
     arg_str = cmdline;
-    arg_str += libcmd_sprintf_s(arg_str, sizeof(cmdline), "\"%s\" /D /C", comspec);
+    if (!direct_spawn)
+        arg_str += libcmd_sprintf_s(arg_str, sizeof(cmdline), "\"%s\" /D /C", comspec);
     for (i = 0; argv[i] != NULL; i++)
     {
-        if (strchr(argv[i], ' ') != NULL || strchr(argv[i], '\t') != NULL)
+        /* With a NULL application name CreateProcess rejects a
+         * command line with leading blank, so the first direct
+         * token is written without a space. */
+        if (i > 0 || !direct_spawn)
         {
-            strcat(arg_str, " \"");
-            strcat(arg_str, argv[i]);
-            strcat(arg_str, "\"");
+            strcat(arg_str, " ");
+            if (strchr(argv[i], ' ') != NULL || strchr(argv[i], '\t') != NULL)
+            {
+                strcat(arg_str, "\"");
+                strcat(arg_str, argv[i]);
+                strcat(arg_str, "\"");
+            }
+            else
+            {
+                strcat(arg_str, argv[i]);
+            }
         }
         else
         {
-            strcat(arg_str, " ");
-            strcat(arg_str, argv[i]);
+            if (strchr(argv[i], ' ') != NULL || strchr(argv[i], '\t') != NULL)
+                libcmd_sprintf_s(arg_str,
+                                 sizeof(cmdline) - (size_t)(arg_str - cmdline),
+                                 "\"%s\"", argv[i]);
+            else
+                libcmd_sprintf_s(arg_str,
+                                 sizeof(cmdline) - (size_t)(arg_str - cmdline),
+                                 "%s", argv[i]);
         }
         arg_str += strlen(arg_str);
     }
 
     if (!CreateProcessA(NULL, cmdline, NULL, NULL, FALSE,
-                        CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi))
+                        creation_flags, NULL, NULL, &si, &pi))
         return -1;
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);

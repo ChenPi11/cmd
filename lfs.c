@@ -247,10 +247,18 @@ int libcmd_is_executable_file(const char *path)
 int libcmd_shell_open(const char *path, int wait,
                       libcmd_exit_info_t *exit_info)
 {
+    return libcmd_shell_open_n(path, wait, exit_info, LIBCMD_SHOW_NORMAL);
+}
+
+int libcmd_shell_open_n(const char *path, int wait,
+                        libcmd_exit_info_t *exit_info, int n_show)
+{
     char xdg_path[4096];
     char norm[4096];
     char *argv[3];
     int pid;
+
+    (void)n_show;   /* the window state is a Windows concern */
 
     if (path == NULL)
         return -1;

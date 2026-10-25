@@ -53,9 +53,11 @@
  * with no command a plain new console is opened.
  * Returns the child PID on success, -1 on failure.
  */
-static int start_in_terminal(char *const argv[])
+static int start_in_terminal(char *const argv[], int show_cmd,
+                             int nice_level)
 {
-    return libcmd_exec_console(argv, libcmd_get_environ());
+    return libcmd_exec_console_ex(argv, libcmd_get_environ(),
+                                  show_cmd, nice_level);
 }
 
 #else
@@ -102,13 +104,16 @@ static char *posix_path_dup(const char *arg);
  * If argv is NULL or argv[0] is NULL, the terminal is opened without
  * any command.
  * Returns child PID on success, -1 on failure. */
-static int start_in_terminal(char *const argv[])
+static int start_in_terminal(char *const argv[], int show_cmd,
+                             int nice_level)
 {
     char term_path[CMD_MAX_PATH];
     const char *term_name;
     int n, i, j;
     char **nargv;
     int pid;
+
+    (void)show_cmd;   /* xdm terminals cannot request a state safely */
 
     if (!libcmd_has_display())
         return -1;
@@ -137,7 +142,7 @@ static int start_in_terminal(char *const argv[])
     nargv[i] = NULL;
 
     pid = libcmd_exec_async(term_path, nargv, libcmd_get_environ(),
-                            -1, -1, -1, 0);
+                            -1, -1, -1, nice_level);
 
     for (j = 0; j < n; j++)
         free(nargv[2 + j]);
@@ -183,7 +188,9 @@ int builtin_start(cmd_context_t *ctx, int argc, char **argv)
 {
     int opt_wait     = 0;
     int opt_b        = 0;
+    int opt_show     = LIBCMD_SHOW_NORMAL;
     int nice_level   = 0;
+    int found        = 0;
     int argi         = 1;
     char exec_path[CMD_MAX_PATH];
     const char *path_env;
@@ -229,12 +236,14 @@ int builtin_start(cmd_context_t *ctx, int argc, char **argv)
             { nice_level = -10; argi++; }
         else if (libcmd_strcasecmp(sw, "/REALTIME") == 0)
             { nice_level = -20; argi++; }
-        else if (libcmd_strcasecmp(sw, "/MIN") == 0 ||
-                 libcmd_strcasecmp(sw, "/MAX") == 0 ||
-                 libcmd_strcasecmp(sw, "/I") == 0 ||
+        else if (libcmd_strcasecmp(sw, "/MIN") == 0)
+            { opt_show = LIBCMD_SHOW_MINIMIZED; argi++; }
+        else if (libcmd_strcasecmp(sw, "/MAX") == 0)
+            { opt_show = LIBCMD_SHOW_MAXIMIZED; argi++; }
+        else if (libcmd_strcasecmp(sw, "/I") == 0 ||
                  libcmd_strcasecmp(sw, "/SHARED") == 0 ||
                  libcmd_strcasecmp(sw, "/SEPARATE") == 0)
-            /* Accepted for compatibility; no-op on Unix. */
+            /* Accepted for compatibility; no-op. */
             { argi++; }
         else
             break;
@@ -274,7 +283,7 @@ int builtin_start(cmd_context_t *ctx, int argc, char **argv)
         cmd_argv[1] = NULL;
 
         {
-            int pid = start_in_terminal(cmd_argv);
+            int pid = start_in_terminal(cmd_argv, opt_show, nice_level);
             if (pid > 0) {
                 if (opt_wait) {
                     libcmd_wait_pid(pid, &exit_info);
@@ -315,8 +324,8 @@ int builtin_start(cmd_context_t *ctx, int argc, char **argv)
             }
 
             for (i = argi; argv[i]; i++) {
-                if (libcmd_shell_open(argv[i], opt_wait && i == argi,
-                                      &exit_info) < 0) {
+                if (libcmd_shell_open_n(argv[i], opt_wait && i == argi,
+                                        &exit_info, opt_show) < 0) {
                     if (saved_cwd[0]) libcmd_chdir(saved_cwd);
                     fprintf(stderr, cmd_gettext(MSG_ERR_START_FAILED),
                             argv[i]);
@@ -343,8 +352,6 @@ run_command:
      * "start echo hi"); those are not on disk, so only require the
      * PATH lookup for names that are not builtins. */
     {
-        int found;
-
         if (cmd_find_builtin(argv[argi]) != NULL)
             found = 2;              /* internal command: START runs it */
         else
@@ -368,7 +375,8 @@ run_command:
              * user dismisses it. */
             {
                 int sret;
-                sret = libcmd_shell_open(argv[argi], opt_wait, &exit_info);
+                sret = libcmd_shell_open_n(argv[argi], opt_wait, &exit_info,
+                                           opt_show);
                 if (saved_cwd[0]) libcmd_chdir(saved_cwd);
                 return (sret == 0) ? (opt_wait ? exit_info.exit_code : 0)
                                    : 1;
@@ -413,7 +421,9 @@ run_command:
 
     /* Normal case: run in a new terminal window */
     {
+        char **pargv = NULL;
         int pid;
+        int n = 0, j;
 
         if (!libcmd_has_display()) {
             if (saved_cwd[0]) libcmd_chdir(saved_cwd);
@@ -421,7 +431,28 @@ run_command:
             return 1;
         }
 
-        pid = start_in_terminal(argv + argi);
+        /* A disk program is handed over as its resolved path, so
+         * exec_console spawns it directly (like real cmd.exe's START):
+         * the window state and priority then apply to the program
+         * itself, and GUI programs do not drag a host cmd console
+         * along.  Builtins keep their bare name and go through the
+         * COMSPEC wrapper. */
+        if (found == 1 && exec_path[0] != '\0') {
+            for (n = 0; argv[argi + n] != NULL; n++);
+            pargv = (char **)malloc((size_t)(n + 1) * sizeof(char *));
+            if (pargv != NULL) {
+                pargv[0] = exec_path;
+                for (j = 1; j < n; j++)
+                    pargv[j] = argv[argi + j];
+                pargv[n] = NULL;
+            }
+        }
+
+        if (pargv != NULL)
+            pid = start_in_terminal(pargv, opt_show, nice_level);
+        else
+            pid = start_in_terminal(argv + argi, opt_show, nice_level);
+        free(pargv);
         if (pid < 0) {
             if (saved_cwd[0]) libcmd_chdir(saved_cwd);
             fprintf(stderr, cmd_gettext(MSG_ERR_START_FAILED), argv[argi]);
