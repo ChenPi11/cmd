@@ -35,6 +35,12 @@ static HANDLE hConsoleIn = NULL;
 static HANDLE hConsoleOut = NULL;
 static DWORD originalConsoleMode = 0;
 
+/* Set when the output console understands ANSI/VT sequences.  conhost
+ * renders "\x1b[..." literally (the user's "garbage" after Backspace)
+ * unless the non-default ENABLE_VIRTUAL_TERMINAL_PROCESSING flag is
+ * on, so sequences are only emitted when it could be turned on. */
+static int vt_processing = 0;
+
 /* -------------------------------------------------------------------------
  * Internal helpers
  * ---------------------------------------------------------------------- */
@@ -42,9 +48,22 @@ static DWORD originalConsoleMode = 0;
 static void init_console(void)
 {
     if (hConsoleIn == NULL) {
+        DWORD out_mode;
+
         hConsoleIn = GetStdHandle(STD_INPUT_HANDLE);
         hConsoleOut = GetStdHandle(STD_OUTPUT_HANDLE);
         GetConsoleMode(hConsoleIn, &originalConsoleMode);
+
+        /* Put the output console into VT mode.  On hosts that cannot
+         * do it the flag simply stays clear and the editor falls back
+         * to plain \b cursor steps. */
+        if (hConsoleOut != NULL && hConsoleOut != INVALID_HANDLE_VALUE &&
+            GetConsoleMode(hConsoleOut, &out_mode) &&
+            SetConsoleMode(hConsoleOut,
+                           out_mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING) &&
+            GetConsoleMode(hConsoleOut, &out_mode))
+            vt_processing =
+                (out_mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0;
     }
 }
 
@@ -56,7 +75,14 @@ static void set_raw_mode(int enable)
 
     if (enable) {
         mode = originalConsoleMode;
-        mode &= ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT | ENABLE_PROCESSED_INPUT);
+        /* Clear the line-editor bits.  ENABLE_VIRTUAL_TERMINAL_INPUT is
+         * cleared as well (as Clink does): when it is on, Backspace
+         * arrives as 0x7f (DEL) instead of 0x08 and Ctrl combinations
+         * get mangled, because conhost keeps translating keys into VT
+         * sequences for whoever last enabled it on this console. */
+        mode &= ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT |
+                  ENABLE_PROCESSED_INPUT |
+                  ENABLE_VIRTUAL_TERMINAL_INPUT);
         SetConsoleMode(hConsoleIn, mode);
     } else {
         SetConsoleMode(hConsoleIn, originalConsoleMode);
@@ -264,8 +290,11 @@ char *linenoise(const char *prompt)
                 write_console("\r\n", 2);
                 break;
             }
-            else if (ch == '\b' || ker->wVirtualKeyCode == VK_BACK) {
-                /* Backspace */
+            else if (ch == '\b' || ch == 0x7F ||
+                     ker->wVirtualKeyCode == VK_BACK) {
+                /* Backspace.  0x7f is DEL, the value the VT input mode
+                 * hands out for the key (microsoft/terminal#4949) in
+                 * case the flag is still on for this console. */
                 if (pos > 0) {
                     memmove(&line[pos-1], &line[pos], (size_t)(len - pos + 1));
                     pos--;
@@ -275,16 +304,21 @@ char *linenoise(const char *prompt)
                     write_console(&line[pos], len - pos);
                     write_console(" ", 1);
                     {
-                        int i;
                         char buf[32];
                         int n = libcmd_sprintf_s(buf, sizeof(buf), "\r");
+                        int i;
+
                         write_console(buf, n);
                         if (prompt)
                             write_console(prompt, (int)strlen(prompt));
                         write_console(line, len);
-                        /* Position cursor */
-                        n = libcmd_sprintf_s(buf, sizeof(buf), "\x1b[%dC", pos);
-                        write_console(buf, n);
+                        /* The redraw leaves the cursor at the end of
+                         * the line, so step back to the edit position
+                         * with \b: this needs no VT support on the
+                         * console (escape sequences would render as
+                         * literal garbage there). */
+                        for (i = 0; i < len - pos; i++)
+                            write_console("\b", 1);
                     }
                 }
             }
@@ -316,11 +350,20 @@ char *linenoise(const char *prompt)
                 }
             }
             else if (ch == 0x0C) {
-                /* Ctrl+L - clear screen */
-                write_console("\033[2J\033[H", 7);
-                if (prompt)
-                    write_console(prompt, (int)strlen(prompt));
-                write_console(line, len);
+                /* Ctrl+L - clear screen.  The two-sequence clear only
+                 * works when the output console is in VT mode;
+                 * otherwise it would be printed as literal garbage. */
+                if (vt_processing) {
+                    write_console("\033[2J\033[H", 7);
+                    if (prompt)
+                        write_console(prompt, (int)strlen(prompt));
+                    write_console(line, len);
+                    {
+                        int i;
+                        for (i = 0; i < len - pos; i++)
+                            write_console("\b", 1);
+                    }
+                }
             }
             else if (ker->wVirtualKeyCode == VK_UP) {
                 /* Up arrow - previous history */
@@ -440,10 +483,14 @@ char *linenoise(const char *prompt)
                     /* Redisplay from cursor */
                     write_console(&line[pos-1], len - pos + 1);
                     if (pos < len) {
-                        /* Move cursor back to correct position */
-                        char buf[32];
-                        int n = libcmd_sprintf_s(buf, sizeof(buf), "\x1b[%dD", len - pos);
-                        write_console(buf, n);
+                        /* The write above put the cursor after the
+                         * line's last character: step back to the edit
+                         * position with \b instead of an escape
+                         * sequence, which conhost renders literally
+                         * without the VT-processing flag. */
+                        int i;
+                        for (i = 0; i < len - pos; i++)
+                            write_console("\b", 1);
                     }
                 }
             }
