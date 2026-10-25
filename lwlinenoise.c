@@ -444,6 +444,26 @@ char *linenoise(const char *prompt)
                     pos++;
                 }
             }
+            else if (ker->wVirtualKeyCode == VK_DELETE) {
+                /* Delete: drop the character at the cursor (the
+                 * forward counterpart of Backspace). */
+                if (pos < len) {
+                    memmove(&line[pos], &line[pos + 1],
+                            (size_t)(len - pos));
+                    len--;
+                    line[len] = '\0';
+                    /* Redraw from the cursor: the shifted tail, one
+                     * blank over the stale trailing cell, then plain
+                     * \b steps back to the edit position. */
+                    write_console(&line[pos], len - pos);
+                    write_console(" ", 1);
+                    {
+                        int i;
+                        for (i = 0; i < len - pos + 1; i++)
+                            write_console("\b", 1);
+                    }
+                }
+            }
             else if (ch == '\t' && linenoiseCompletionEnabled && completionCallback) {
                 /* Tab completion */
                 linenoiseCompletions lc = {0, NULL};
