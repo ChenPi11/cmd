@@ -1,3 +1,4 @@
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
 /*
  * lautorun.c - execute AutoRun scripts
  *
@@ -118,3 +119,4 @@ cleanup:
     closedir(d);
     return ret;
 }
+#endif

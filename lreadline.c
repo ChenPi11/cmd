@@ -1,3 +1,4 @@
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
 /*
  * lreadline.c - line editing with linenoise
  *
@@ -378,3 +379,4 @@ char *libcmd_readline(const char *prompt, char *buf, size_t size)
 
     return buf;
 }
+#endif

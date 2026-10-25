@@ -1,3 +1,4 @@
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
 /*
  * lpath.c - path manipulation utilities
  *
@@ -212,3 +213,4 @@ char *libcmd_path_normalize(char *path)
 
     return path;
 }
+#endif

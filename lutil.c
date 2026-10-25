@@ -1,3 +1,4 @@
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
 /*
  * lutil.c - string utility functions
  *
@@ -104,3 +105,4 @@ const char *libcmd_strerror(void)
 {
     return strerror(errno);
 }
+#endif

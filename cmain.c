@@ -330,8 +330,13 @@ int main(int argc, char **argv)
         /*
          * If the command string looks like a batch file path, run it directly.
          * Otherwise, run it as a command string.
+         *
+         * The string is used verbatim like cmd.exe's /C: normalising it
+         * as a path would turn every switch into "\switch".  A batch
+         * file given with '\' separators still resolves (the crt
+         * accepts either separator), and dispatch normalises the
+         * command name itself.
          */
-        libcmd_path_norm_sep(opts.cmd_string);
         {
             const char *ext = libcmd_path_ext(opts.cmd_string);
             if ((libcmd_strcasecmp(ext, ".bat") == 0 ||

@@ -6,8 +6,8 @@
  *
  * This file may be included from both C89 and C11 code.  It is kept
  * C89-clean so it can be compiled against old System V headers, and
- * uses off_t (from <sys/types.h>) for file sizes instead of the C99
- * long long type.
+ * uses libcmd_filesize_t (off_t on Unix, __int64 on Windows) for file
+ * sizes instead of the C99 long long type.
  *
  * License: GNU GPLv3
  */
@@ -16,6 +16,8 @@
  * Compiler's #ifndef handling is unreliable after a very long macro
  * expansion, which could defeat the guard. */
 
+#include <setjmp.h>
+#include <signal.h>
 #include <stddef.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -36,6 +38,22 @@
 #endif
 #ifndef S_ISLNK
 # define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
+#endif
+
+/* -------------------------------------------------------------------------
+ * File sizes
+ * ---------------------------------------------------------------------- */
+
+/*
+ * libcmd_filesize_t - exact byte counts for file sizes and disk
+ * statistics.  MSVC's off_t is 32 bits, which would wrap for anything
+ * over 2 GB, so Windows builds use __int64; Unix keeps off_t (64-bit on
+ * the LP64 platforms this port targets).
+ */
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+typedef __int64 libcmd_filesize_t;
+#else
+typedef off_t libcmd_filesize_t;
 #endif
 
 #ifdef __cplusplus
@@ -82,6 +100,78 @@ typedef int libcmd_bool_t;
 #define LIBCMD_STDERR_FILENO 2
 
 /* -------------------------------------------------------------------------
+ * Signals
+ * ---------------------------------------------------------------------- */
+
+/*
+ * Portable signal numbers, for sources that must also compile where
+ * the raw macros are missing:
+ *
+ *   LIBCMD_SIGINT   ISO C, available everywhere
+ *   LIBCMD_SIGTSTP  job-control stop; never delivered on Windows
+ *   LIBCMD_SIGPIPE  never delivered on Windows (writes just fail)
+ *
+ * On POSIX hosts they are the plain <signal.h> values, so mixing them
+ * with e.g. readline hooks keeps its meaning there.
+ */
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#define LIBCMD_SIGINT   SIGINT
+#define LIBCMD_SIGTSTP  20
+#define LIBCMD_SIGPIPE  13
+#else
+#define LIBCMD_SIGINT   SIGINT
+#define LIBCMD_SIGTSTP  SIGTSTP
+#define LIBCMD_SIGPIPE  SIGPIPE
+#endif
+
+typedef void (*libcmd_sig_handler_t)(int);
+
+/*
+ * libcmd_sigaction - POSIX sigaction(2) subset.
+ *
+ * Only the handler is honoured: the signal mask is always kept empty
+ * and sa_flags is forced to 0 (no SA_RESTART), so interrupted blocking
+ * syscalls return EINTR like the interpreter expects.  act may be NULL
+ * to leave the disposition unchanged; when oldact is not NULL the
+ * previous handler is stored in it.
+ * On Windows SIGTSTP/SIGPIPE are recorded in a per-signal slot instead
+ * of calling signal(3), since neither exists there.
+ * Returns 0 on success, -1 on error.
+ */
+typedef struct libcmd_sigaction {
+    libcmd_sig_handler_t handler;
+} libcmd_sigaction_t;
+
+int libcmd_sigaction(int sig,
+                     const libcmd_sigaction_t *act,
+                     libcmd_sigaction_t *oldact);
+
+/*
+ * libcmd_reset_child_signals - restore default dispositions in a child
+ * process before running a foreign command (SIGINT/SIGTSTP/SIGPIPE get
+ * SIG_DFL).  A no-op for signals the host platform does not have.
+ */
+void libcmd_reset_child_signals(void);
+
+/*
+ * Portable setjmp/longjmp extension that also saves the signal mask on
+ * POSIX hosts:
+ *
+ *   libcmd_sigjmp_buf   context type (sigjmp_buf / jmp_buf)
+ *   libcmd_sigsetjmp()  save the context, like sigsetjmp(env, 1)
+ *   libcmd_siglongjmp() restore the context
+ */
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+typedef jmp_buf libcmd_sigjmp_buf;
+#define libcmd_sigsetjmp(env, save) setjmp((env))
+#define libcmd_siglongjmp(env, val) longjmp((env), (val))
+#else
+typedef sigjmp_buf libcmd_sigjmp_buf;
+#define libcmd_sigsetjmp(env, save) sigsetjmp((env), (save))
+#define libcmd_siglongjmp(env, val) siglongjmp((env), (val))
+#endif
+
+/* -------------------------------------------------------------------------
  * Time / date
  * ---------------------------------------------------------------------- */
 
@@ -104,7 +194,7 @@ typedef struct libcmd_stat {
     libcmd_bool_t is_dir;
     libcmd_bool_t is_link;
     libcmd_bool_t is_regular;
-    off_t         size;          /* bytes                               */
+    libcmd_filesize_t size;        /* bytes                               */
     libcmd_time_t mtime;
     libcmd_time_t atime;
     libcmd_time_t ctime;
@@ -121,7 +211,7 @@ typedef struct libcmd_dirent {
     char          name[LIBCMD_NAME_MAX];
     libcmd_bool_t is_dir;
     libcmd_bool_t is_link;
-    off_t         size;
+    libcmd_filesize_t size;
     libcmd_time_t mtime;
     libcmd_time_t atime;
     libcmd_time_t ctime;
@@ -196,7 +286,10 @@ char *libcmd_strtrim(char *s);
 /*
  * libcmd_getenv - get value of environment variable
  * Returns pointer into the environment or NULL if not found.
- * Do not modify or free the returned pointer.
+ * Do not modify or free the returned pointer.  The storage behind
+ * the pointer is refreshed by later libcmd_getenv calls (a small
+ * rotating pool keeps the most recent lookups valid); copy values
+ * that must survive several further lookups.
  */
 const char *libcmd_getenv(const char *name);
 
@@ -304,6 +397,40 @@ int libcmd_access(const char *path, int mode);
  * Returns 0 on success, -1 on error.
  */
 int libcmd_copy_file(const char *src, const char *dst, int overwrite);
+
+/*
+ * libcmd_get_entry_owner - look up the account that owns a filesystem
+ * entry (used by "dir /q" for the owner column).
+ *
+ * On Unix this resolves stat(path).st_uid through getpwuid(3); on
+ * Windows the entry's owner SID is turned into an account name with
+ * LookupAccountSid, producing the same wording as cmd.exe's "dir /q"
+ * (e.g. "BUILTIN\Administrators").
+ * name_buf receives the NUL-terminated account name.
+ * Returns 0 on success, -1 when the owner cannot be determined.
+ */
+int libcmd_get_entry_owner(const char *path, char *name_buf, size_t name_size);
+
+/*
+ * libcmd_is_executable_file - return 1 if path names a regular file the
+ * platform runs directly: on Unix a file with an execute bit set, on
+ * Windows a file with one of the executable extensions .com, .exe,
+ * .bat or .cmd (case-insensitive).  Returns 0 otherwise (errors too).
+ */
+int libcmd_is_executable_file(const char *path);
+
+/*
+ * libcmd_shell_open - open path the way the desktop would present it
+ * ("start <path>" for folders and documents): xdg-open(1) on Unix,
+ * ShellExecute on Windows (directory opens Explorer, documents open
+ * their default association).
+ * When wait is non-zero the call blocks until the started program (or
+ * its launcher) exits and fills *exit_info; otherwise it returns
+ * immediately and exit_info is untouched.
+ * Returns 0 on success, -1 on error.
+ */
+int libcmd_shell_open(const char *path, int wait,
+                      libcmd_exit_info_t *exit_info);
 
 /* -------------------------------------------------------------------------
  * Directory iteration
@@ -451,6 +578,22 @@ int libcmd_exec_async(const char *path,
 int libcmd_wait_pid(int pid, libcmd_exit_info_t *exit_info);
 
 /*
+ * libcmd_exec_console - run argv in a newly opened console window,
+ * like cmd.exe's START without /B.  argv[0] is the command and the
+ * following entries its arguments; a NULL (or empty) argv opens a
+ * plain new console running the shell itself.
+ *
+ * Windows: the command is wrapped as "%COMSPEC% /D /C <args>" so
+ * external executables, builtins and batch files all work through one
+ * path.  envp is currently ignored (the child inherits the parent's
+ * environment).
+ * Unix: there is no "new console" concept, so this always returns -1;
+ * callers keep their own terminal-emulator fallback.
+ * Returns the child PID on success, -1 on error.
+ */
+int libcmd_exec_console(char *const argv[], char *const envp[]);
+
+/*
  * libcmd_set_process_priority - set the calling process's scheduling
  * priority to the given nice level.
  *
@@ -543,6 +686,42 @@ void libcmd_init_self(const char *argv0);
 const char *libcmd_get_self_path(void);
 
 /* -------------------------------------------------------------------------
+ * OS information (uname)
+ * ---------------------------------------------------------------------- */
+
+#define LIBCMD_UTSNAME_LEN 64
+
+/*
+ * libcmd_utsname - portable struct utsname.
+ * Every field is NUL-terminated; fields the platform cannot determine
+ * stay empty strings.  Like uname(2), buf->sysname[0]=='\0' therefore
+ * means "not filled in".
+ */
+typedef struct libcmd_utsname {
+    char sysname[LIBCMD_UTSNAME_LEN];   /* OS name, e.g. "Linux"      */
+    char nodename[LIBCMD_UTSNAME_LEN];  /* host name                  */
+    char release[LIBCMD_UTSNAME_LEN];   /* release, e.g. "6.6.0"      */
+    char version[LIBCMD_UTSNAME_LEN];   /* extra version information  */
+    char machine[LIBCMD_UTSNAME_LEN];   /* CPU type, e.g. "AMD64"     */
+} libcmd_utsname_t;
+
+/*
+ * libcmd_uname - fill *buf in with the operating system identity.
+ * buf is zeroed first, then filled from uname(2) (Unix) or
+ * ntdll!RtlGetVersion etc. (Windows); the whole call cannot fail on
+ * modern hosts, so "0" is always returned.
+ */
+int libcmd_uname(libcmd_utsname_t *buf);
+
+/*
+ * libcmd_has_display - return 1 when a graphical session is reachable
+ * (DISPLAY/Wayland on Unix).  Windows child processes always get their
+ * own console, so the concept does not apply and this maps to
+ * "always available".
+ */
+int libcmd_has_display(void);
+
+/* -------------------------------------------------------------------------
  * Terminal operations
  * ---------------------------------------------------------------------- */
 
@@ -581,6 +760,20 @@ int libcmd_set_title(const char *title);
  * Returns 0 on success, -1 on error.
  */
 int libcmd_get_terminal_size(int *cols, int *rows);
+
+/*
+ * libcmd_tty_ask_yn - print msg on the controlling terminal and read a
+ * single Y/N answer (a portable "Terminate batch job (Y/N)?").
+ *
+ * The message is written to, and the answer read from, the controlling
+ * terminal so the exchange works regardless of stdin/stdout
+ * redirection.  The terminal is put in cbreak mode: a single keypress
+ * answers immediately and every key pressed is echoed; keys other than
+ * Y/N make the question repeat.  When there is no controlling terminal
+ * the function returns 1 without prompting (non-interactive behaviour).
+ * Returns 1 for Y, 0 for N.
+ */
+int libcmd_tty_ask_yn(const char *msg);
 
 /* -------------------------------------------------------------------------
  * Path utilities
@@ -715,8 +908,8 @@ int libcmd_get_volume_info(const char *path,
  * Returns 0 on success, -1 on error.
  */
 int libcmd_get_disk_free(const char *path,
-                         off_t *free_bytes,
-                         off_t *total_bytes);
+                         libcmd_filesize_t *free_bytes,
+                         libcmd_filesize_t *total_bytes);
 
 /* -------------------------------------------------------------------------
  * Error string

@@ -84,8 +84,8 @@ static void lang_zh_wy_init(const char *table[MSG_COUNT])
     table[MSG_INFO_DIRECTORY_OF] =
         " %s \344\271\213\347\233\256\345\275\225\n"
         "\n";
-    table[MSG_INFO_FILES_TOTAL] = "%16ld \346\226\207 %14ld \345\255\227\350\212\202\n";
-    table[MSG_INFO_DIRS_TOTAL] = "%16ld \347\233\256 %14ld \345\255\227\350\212\202\345\217\257\347\224\250\n";
+    table[MSG_INFO_FILES_TOTAL] = "%16ld \346\226\207 %14lld \345\255\227\350\212\202\n";
+    table[MSG_INFO_DIRS_TOTAL] = "%16ld \347\233\256 %14lld \345\255\227\350\212\202\345\217\257\347\224\250\n";
     table[MSG_INFO_TOTAL_FILES] =
         "\n"
         "\346\211\200\345\210\227\346\226\207\346\200\273\346\225\260:\n";

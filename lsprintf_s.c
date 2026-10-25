@@ -1,3 +1,4 @@
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
 /*
  * lsprintf_s.c - safe sprintf implementation
  *
@@ -293,3 +294,4 @@ int libcmd_sprintf_s(char *buf, size_t size, const char *fmt, ...)
     va_end(ap);
     return n;
 }
+#endif

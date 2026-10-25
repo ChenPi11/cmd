@@ -1,3 +1,4 @@
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
 /*
  * lenv.c - environment variable management
  *
@@ -147,3 +148,4 @@ char **libcmd_get_environ(void)
 {
     return environ;
 }
+#endif

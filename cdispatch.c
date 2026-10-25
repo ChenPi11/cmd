@@ -17,7 +17,7 @@
 #include <string.h>
 
 /* sigsetjmp/siglongjmp support for interrupting builtins (defined in cinterp.c) */
-extern sigjmp_buf cmd_interrupt_env;
+extern libcmd_sigjmp_buf cmd_interrupt_env;
 extern volatile sig_atomic_t cmd_in_builtin;
 
 /* -------------------------------------------------------------------------
@@ -305,11 +305,15 @@ int cmd_dispatch(cmd_context_t *ctx, int argc, char **argv,
     builtin = cmd_find_builtin(argv[0]);
     if (builtin != NULL) {
         /* Convert Windows-style '\' separators to '/' in every builtin
-         * argument, so paths like \usr\bin work everywhere. */
+         * argument, so paths like \usr\bin work everywhere.  Arguments
+         * that start with '/' are switches (/?, /wait, ...): real
+         * cmd.exe never treats a leading slash as a path, so they are
+         * left untouched. */
         {
             int i;
             for (i = 0; i < argc; i++)
-                libcmd_path_norm_sep(argv[i]);
+                if (argv[i][0] != '/')
+                    libcmd_path_norm_sep(argv[i]);
         }
         /* Save/restore standard fds around the builtin call if redirection
          * was requested.  For builtins, the fds have already been dup2'd
@@ -329,7 +333,7 @@ int cmd_dispatch(cmd_context_t *ctx, int argc, char **argv,
                                 libcmd_strcasecmp(argv[0], "pushd") == 0 ||
                                 libcmd_strcasecmp(argv[0], "popd")  == 0);
 
-            if (sigsetjmp(cmd_interrupt_env, 1) == 0) {
+            if (libcmd_sigsetjmp(cmd_interrupt_env, 1) == 0) {
                 cmd_in_builtin = 1;
                 ret = builtin->fn(ctx, argc, argv);
             } else {

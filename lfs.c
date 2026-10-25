@@ -1,3 +1,4 @@
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
 /*
  * lfs.c - filesystem operations
  *
@@ -9,6 +10,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -197,6 +199,90 @@ int libcmd_stat(const char *path, libcmd_stat_t *st, int follow_links)
 
     stat_to_libcmd(&s, st);
     return 0;
+}
+
+/* -------------------------------------------------------------------------
+ * Entry owner lookup ("dir /q")
+ * ---------------------------------------------------------------------- */
+
+int libcmd_get_entry_owner(const char *path, char *name_buf, size_t name_size)
+{
+    struct stat st;
+    struct passwd *pw;
+
+    if (path == NULL || name_buf == NULL || name_size == 0)
+        return -1;
+    name_buf[0] = '\0';
+
+    /* Follow links: libcmd_readdir() stats the same way, so the owner
+     * column matches the uid it fills in. */
+    if (stat(path, &st) < 0)
+        return -1;
+    pw = getpwuid(st.st_uid);
+    if (pw == NULL || pw->pw_name == NULL || pw->pw_name[0] == '\0')
+        return -1;
+    libcmd_sprintf_s(name_buf, name_size, "%s", pw->pw_name);
+    return 0;
+}
+
+/* -------------------------------------------------------------------------
+ * Executable detection ("start <file>")
+ * ---------------------------------------------------------------------- */
+
+int libcmd_is_executable_file(const char *path)
+{
+    libcmd_stat_t st;
+
+    if (path == NULL)
+        return 0;
+    if (libcmd_stat(path, &st, 1) != 0 || !st.is_regular)
+        return 0;
+    return (st.mode & (S_IXUSR | S_IXGRP | S_IXOTH)) ? 1 : 0;
+}
+
+/* -------------------------------------------------------------------------
+ * Default-application open ("start <path>" on Unix)
+ * ---------------------------------------------------------------------- */
+
+int libcmd_shell_open(const char *path, int wait,
+                      libcmd_exit_info_t *exit_info)
+{
+    char xdg_path[4096];
+    char norm[4096];
+    char *argv[3];
+    int pid;
+
+    if (path == NULL)
+        return -1;
+    if (libcmd_find_exec("xdg-open", libcmd_getenv("PATH"),
+                         xdg_path, sizeof(xdg_path)) < 0)
+        return -1;
+
+    /* Separators are normalised so the desktop helper receives a
+     * POSIX path; a bare name found in the current directory keeps
+     * its "./" prefix so it cannot be confused with a PATH lookup. */
+    libcmd_sprintf_s(norm, sizeof(norm), "%s", path);
+    if (strchr(norm, '/') == NULL && strchr(norm, '\\') == NULL)
+    {
+        char tmp[4096];
+        libcmd_stat_t st;
+
+        if (libcmd_sprintf_s(tmp, sizeof(tmp), "./%s", norm) >= 0 &&
+            libcmd_stat(tmp, &st, 1) == 0)
+            libcmd_sprintf_s(norm, sizeof(norm), "%s", tmp);
+    }
+    libcmd_path_norm_sep(norm);
+
+    argv[0] = (char *)xdg_path;
+    argv[1] = norm;
+    argv[2] = NULL;
+
+    if (wait)
+        return libcmd_exec_sync(xdg_path, argv, libcmd_get_environ(),
+                                -1, -1, -1, 0, exit_info);
+    pid = libcmd_exec_async(xdg_path, argv, libcmd_get_environ(),
+                            -1, -1, -1, 0);
+    return pid >= 0 ? 0 : -1;
 }
 
 int libcmd_access(const char *path, int mode)
@@ -487,8 +573,8 @@ int libcmd_get_volume_info(const char *path,
 }
 
 int libcmd_get_disk_free(const char *path,
-                         off_t *free_bytes,
-                         off_t *total_bytes)
+                         libcmd_filesize_t *free_bytes,
+                         libcmd_filesize_t *total_bytes)
 {
     struct statvfs sv;
 
@@ -496,8 +582,9 @@ int libcmd_get_disk_free(const char *path,
         return -1;
 
     if (free_bytes)
-        *free_bytes = (off_t)sv.f_bavail * (off_t)sv.f_frsize;
+        *free_bytes = (libcmd_filesize_t)sv.f_bavail * (libcmd_filesize_t)sv.f_frsize;
     if (total_bytes)
-        *total_bytes = (off_t)sv.f_blocks * (off_t)sv.f_frsize;
+        *total_bytes = (libcmd_filesize_t)sv.f_blocks * (libcmd_filesize_t)sv.f_frsize;
     return 0;
 }
+#endif

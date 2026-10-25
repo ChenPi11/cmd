@@ -1,3 +1,4 @@
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
 /* linenoise.c -- guerrilla line editing library against the idea that a
  * line editing lib needs to be 20,000 lines of C code.
  *
@@ -2441,3 +2442,4 @@ int linenoiseHistoryLoad(const char *filename) {
     fclose(fp);
     return 0;
 }
+#endif

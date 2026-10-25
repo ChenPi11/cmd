@@ -1,3 +1,4 @@
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
 /*
  * ltime_util.c - time and date utilities
  *
@@ -47,3 +48,4 @@ int libcmd_random(void)
 {
     return rand() % 32768;
 }
+#endif

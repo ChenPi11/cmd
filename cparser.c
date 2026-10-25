@@ -776,7 +776,7 @@ static int exec_node_fds(cmd_context_t *ctx, cmd_node_t *node,
 
         for (i = 0; i < n; i++) {
             int fds[2] = { -1, -1 };
-            pid_t pid;
+            int pid;
 
             if (i + 1 < n) {
                 if (libcmd_pipe(fds) < 0)
@@ -812,9 +812,7 @@ static int exec_node_fds(cmd_context_t *ctx, cmd_node_t *node,
                 /* Reset signal dispositions: the shell's SIGINT handler
                  * must not longjmp across the fork, and SIGPIPE must
                  * terminate pipeline stages like a real shell */
-                signal(SIGINT, SIG_DFL);
-                signal(SIGTSTP, SIG_DFL);
-                signal(SIGPIPE, SIG_DFL);
+                libcmd_reset_child_signals();
 
                 /* Apply this stage's own redirections */
                 if (apply_redirs(stages[i]->redirs) < 0)

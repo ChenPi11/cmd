@@ -1,3 +1,4 @@
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
 /*
  * lexec.c - process execution
  *
@@ -319,3 +320,17 @@ int libcmd_pclose(FILE *stream)
         return -1;
     return pclose(stream);
 }
+
+/* -------------------------------------------------------------------------
+ * New-console spawn (START "command")
+ * ---------------------------------------------------------------------- */
+
+int libcmd_exec_console(char *const argv[], char *const envp[])
+{
+    /* POSIX has no "new console window" primitive; START keeps its
+     * x-terminal-emulator fallback on Unix. */
+    (void)argv;
+    (void)envp;
+    return -1;
+}
+#endif

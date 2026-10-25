@@ -290,11 +290,11 @@ MSG_INFO_DIRECTORY_OF
 ---
 
 MSG_INFO_FILES_TOTAL
-"%16ld 个文件 %14ld 字节\n"
+"%16ld 个文件 %14lld 字节\n"
 ---
 
 MSG_INFO_DIRS_TOTAL
-"%16ld 个目录 %14ld 字节可用\n"
+"%16ld 个目录 %14lld 字节可用\n"
 ---
 
 MSG_INFO_TOTAL_FILES

@@ -1,3 +1,4 @@
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
 /*
  * lselfpath.c - locate the running executable's own path
  *
@@ -144,3 +145,4 @@ const char *libcmd_get_self_path(void)
 
     return NULL;
 }
+#endif

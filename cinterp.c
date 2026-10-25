@@ -17,15 +17,10 @@
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/utsname.h>
-#include <termios.h>
-#include <unistd.h>
 
 /* -------------------------------------------------------------------------
  * Version banner (uses uname to generate dynamically)
@@ -34,11 +29,9 @@
 const char *cmd_get_banner(void)
 {
     static char buf[256];
-    struct utsname u;
+    libcmd_utsname_t u;
 
-    memset(buf, 0, sizeof(buf));
-    /* Some unix may return 1 on success. */
-    uname(&u);
+    libcmd_uname(&u);
 
     if (u.sysname[0] == '\0')
     {
@@ -74,7 +67,7 @@ static volatile sig_atomic_t cmd_sigtstp_flag = 0;
 /* sigsetjmp/siglongjmp support for interrupting builtin commands.
  * cmd_in_builtin is set before a builtin runs and cleared after;
  * the SIGINT handler checks it to decide whether to siglongjmp. */
-sigjmp_buf cmd_interrupt_env;
+libcmd_sigjmp_buf cmd_interrupt_env;
 volatile sig_atomic_t cmd_in_builtin = 0;
 
 static void cmd_sigint_handler(int sig)
@@ -84,7 +77,7 @@ static void cmd_sigint_handler(int sig)
     if (cmd_in_builtin)
     {
         cmd_in_builtin = 0;
-        siglongjmp(cmd_interrupt_env, 1);
+        libcmd_siglongjmp(cmd_interrupt_env, 1);
     }
 }
 
@@ -104,106 +97,42 @@ static int cmd_readline_signal_hook(void)
     if (cmd_sigint_flag)
     {
         cmd_sigint_flag = 0;
-        return SIGINT;
+        return LIBCMD_SIGINT;
     }
     if (cmd_sigtstp_flag)
     {
         cmd_sigtstp_flag = 0;
-        return SIGTSTP;
+        return LIBCMD_SIGTSTP;
     }
     return 0;
 }
 
 void cmd_install_signal_handlers(void)
 {
-    struct sigaction sa;
+    libcmd_sigaction_t sa;
 
     memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = cmd_sigint_handler;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0; /* no SA_RESTART: interrupted syscalls return EINTR */
-    sigaction(SIGINT, &sa, NULL);
+    sa.handler = cmd_sigint_handler;
+    libcmd_sigaction(LIBCMD_SIGINT, &sa, NULL);
 
     /* Builtins writing to a closed pipe (e.g. echo x | head) must get
      * EPIPE instead of dying; pipeline children reset this to SIG_DFL. */
-    memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = SIG_IGN;
-    sigemptyset(&sa.sa_mask);
-    sigaction(SIGPIPE, &sa, NULL);
+    sa.handler = SIG_IGN;
+    libcmd_sigaction(LIBCMD_SIGPIPE, &sa, NULL);
 }
 
 /* -------------------------------------------------------------------------
  * "Terminate batch job (Y/N)?" prompt (cmd.exe Ctrl+C behaviour)
  *
  * Returns 1 if the batch job should be terminated, 0 to continue with
- * the next line.  The prompt is written to /dev/tty and the answer read
- * from there too, so it works regardless of stdin/stdout redirection.
- * When no controlling terminal exists (non-interactive run), the batch
- * job is terminated without asking, matching cmd.exe batch mode.
+ * the next line.  The whole terminal exchange lives in libcmd
+ * (libcmd_tty_ask_yn): on Unix /dev/tty, on Windows CONOUT$/$getch,
+ * so the behaviour is identical on both hosts.
  * ---------------------------------------------------------------------- */
 
 static int prompt_terminate_batch(void)
 {
-    const char *msg = cmd_gettext(MSG_TERMINATE_BATCH);
-    struct termios old, raw;
-    int fd;
-    int result = 1; /* default: terminate */
-    int have_raw = 0;
-    size_t msg_len = strlen(msg);
-
-    fd = open("/dev/tty", O_RDWR);
-    if (fd < 0)
-        return 1;
-
-    /* The terminal is in canonical mode: a single-key answer would
-     * sit in the line buffer until Enter.  Switch to cbreak (no
-     * ICANON) so one keystroke answers immediately; echo stays on. */
-    if (tcgetattr(fd, &old) == 0)
-    {
-        raw = old;
-        raw.c_lflag &= ~(tcflag_t)ICANON;
-        raw.c_cc[VMIN] = 1;
-        raw.c_cc[VTIME] = 0;
-        if (tcsetattr(fd, TCSANOW, &raw) == 0)
-            have_raw = 1;
-    }
-
-    for (;;)
-    {
-        char c = 0;
-        long n;
-
-        if (write(fd, msg, msg_len) < 0)
-            break;
-
-        do
-        {
-            n = read(fd, &c, 1);
-        } while (n < 0 && errno == EINTR);
-
-        if (n <= 0)
-        {
-            /* EOF / error on the terminal: terminate */
-            break;
-        }
-        if (c == 'Y' || c == 'y')
-        {
-            result = 1;
-            break;
-        }
-        if (c == 'N' || c == 'n')
-        {
-            result = 0;
-            break;
-        }
-        /* Any other key: ask again */
-    }
-
-    if (have_raw)
-        tcsetattr(fd, TCSANOW, &old);
-    (void)write(fd, "\n", 1);
-    close(fd);
-    return result;
+    return libcmd_tty_ask_yn(cmd_gettext(MSG_TERMINATE_BATCH));
 }
 
 /* -------------------------------------------------------------------------
@@ -817,15 +746,13 @@ int cmd_run_interactive(cmd_context_t *ctx)
          * child, since there is no job control) */
         if (is_tty)
         {
-            struct sigaction sa_tstp, sa_prev;
+            libcmd_sigaction_t sa_tstp, sa_prev;
 
             memset(&sa_tstp, 0, sizeof(sa_tstp));
-            sa_tstp.sa_handler = cmd_sigtstp_handler;
-            sigemptyset(&sa_tstp.sa_mask);
-            sa_tstp.sa_flags = 0;
-            sigaction(SIGTSTP, &sa_tstp, &sa_prev);
+            sa_tstp.handler = cmd_sigtstp_handler;
+            libcmd_sigaction(LIBCMD_SIGTSTP, &sa_tstp, &sa_prev);
             result = libcmd_readline(is_tty && prompt ? prompt : "", line, sizeof(line));
-            sigaction(SIGTSTP, &sa_prev, NULL);
+            libcmd_sigaction(LIBCMD_SIGTSTP, &sa_prev, NULL);
         }
         else
         {

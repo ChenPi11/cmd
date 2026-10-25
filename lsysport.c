@@ -1,3 +1,4 @@
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
 /*
  * lsysport.c - system portability shims
  *
@@ -24,6 +25,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/utsname.h>
 
 #ifndef LIBCMD_SYSV
 #include <fnmatch.h>
@@ -289,4 +291,86 @@ int libcmd_memstream_close(FILE *stream)
     return fclose(stream);
 }
 
+#endif
+
+/* -------------------------------------------------------------------------
+ * uname
+ * ---------------------------------------------------------------------- */
+
+static void lsysport_copy_field(char *dst, size_t dst_size, const char *src)
+{
+    memset(dst, 0, dst_size);
+    if (src != NULL)
+        strncpy(dst, src, dst_size - 1);
+}
+
+int libcmd_uname(libcmd_utsname_t *buf)
+{
+    struct utsname u;
+
+    memset(buf, 0, sizeof(*buf));
+    memset(&u, 0, sizeof(u));
+    /* Some unix may return 1 on success. */
+    (void)uname(&u);
+
+    lsysport_copy_field(buf->sysname,  sizeof(buf->sysname),  u.sysname);
+    lsysport_copy_field(buf->nodename, sizeof(buf->nodename), u.nodename);
+    lsysport_copy_field(buf->release,  sizeof(buf->release),  u.release);
+    lsysport_copy_field(buf->version,  sizeof(buf->version),  u.version);
+    lsysport_copy_field(buf->machine,  sizeof(buf->machine),  u.machine);
+    return 0;
+}
+
+/* -------------------------------------------------------------------------
+ * Signals
+ * ---------------------------------------------------------------------- */
+
+int libcmd_sigaction(int sig,
+                     const libcmd_sigaction_t *act,
+                     libcmd_sigaction_t *oldact)
+{
+    struct sigaction sa, old_sa;
+
+    if (sig != LIBCMD_SIGINT && sig != LIBCMD_SIGTSTP && sig != LIBCMD_SIGPIPE)
+        return -1;
+
+    /* Empty mask, no SA_RESTART: interrupted blocking syscalls return
+     * EINTR, which the interpreter relies on. */
+    memset(&sa, 0, sizeof(sa));
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    if (act != NULL)
+        sa.sa_handler = act->handler;
+
+    if (sigaction(sig, act == NULL ? NULL : &sa,
+                  oldact == NULL ? NULL : &old_sa) < 0)
+        return -1;
+    if (oldact != NULL)
+        oldact->handler = old_sa.sa_handler;
+    return 0;
+}
+
+void libcmd_reset_child_signals(void)
+{
+    signal(LIBCMD_SIGINT, SIG_DFL);
+    signal(LIBCMD_SIGTSTP, SIG_DFL);
+    signal(LIBCMD_SIGPIPE, SIG_DFL);
+}
+
+/* -------------------------------------------------------------------------
+ * Graphical session detection
+ * ---------------------------------------------------------------------- */
+
+int libcmd_has_display(void)
+{
+    const char *d;
+
+    d = libcmd_getenv("DISPLAY");
+    if (d != NULL && d[0] != '\0')
+        return 1;
+    d = libcmd_getenv("WAYLAND_DISPLAY");
+    if (d != NULL && d[0] != '\0')
+        return 1;
+    return 0;
+}
 #endif

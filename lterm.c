@@ -1,3 +1,4 @@
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
 /*
  * lterm.c - terminal operations
  *
@@ -6,8 +7,11 @@
 
 #include "glibcmd.h"
 
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 
@@ -112,3 +116,73 @@ int libcmd_get_terminal_size(int *cols, int *rows)
     if (rows) *rows = 24;
     return -1;
 }
+
+/* -------------------------------------------------------------------------
+ * Controlling-terminal Y/N prompt
+ * ---------------------------------------------------------------------- */
+
+int libcmd_tty_ask_yn(const char *msg)
+{
+    struct termios old, raw;
+    int fd;
+    int result = 1; /* default: terminate */
+    int have_raw = 0;
+    size_t msg_len = strlen(msg);
+
+    /* /dev/tty is the controlling terminal: it keeps working even when
+     * stdin/stdout are redirected. */
+    fd = open("/dev/tty", O_RDWR);
+    if (fd < 0)
+        return 1;
+
+    /* The terminal is in canonical mode: a single-key answer would
+     * sit in the line buffer until Enter.  Switch to cbreak (no
+     * ICANON) so one keystroke answers immediately; echo stays on. */
+    if (tcgetattr(fd, &old) == 0)
+    {
+        raw = old;
+        raw.c_lflag &= ~(tcflag_t)ICANON;
+        raw.c_cc[VMIN] = 1;
+        raw.c_cc[VTIME] = 0;
+        if (tcsetattr(fd, TCSANOW, &raw) == 0)
+            have_raw = 1;
+    }
+
+    for (;;)
+    {
+        char c = 0;
+        long n;
+
+        if (write(fd, msg, msg_len) < 0)
+            break;
+
+        do
+        {
+            n = read(fd, &c, 1);
+        } while (n < 0 && errno == EINTR);
+
+        if (n <= 0)
+        {
+            /* EOF / error on the terminal: terminate */
+            break;
+        }
+        if (c == 'Y' || c == 'y')
+        {
+            result = 1;
+            break;
+        }
+        if (c == 'N' || c == 'n')
+        {
+            result = 0;
+            break;
+        }
+        /* Any other key: ask again */
+    }
+
+    if (have_raw)
+        tcsetattr(fd, TCSANOW, &old);
+    (void)write(fd, "\n", 1);
+    close(fd);
+    return result;
+}
+#endif

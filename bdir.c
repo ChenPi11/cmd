@@ -11,11 +11,9 @@
 #include "glibcmd.h"
 
 #include <ctype.h>
-#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 /* Directory listing options (shared between main listing and /S tree) */
 typedef struct {
@@ -38,17 +36,17 @@ typedef struct {
 static const dir_opts_t *g_sort_opts;
 
 /* Approximate seconds for time comparisons (fine for sorting) */
-static off_t t_secs(const libcmd_time_t *t)
+static libcmd_filesize_t t_secs(const libcmd_time_t *t)
 {
     static const int mdays[12] = {
         31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
     };
-    off_t d = (off_t)(t->year - 1970) * 365;
+    libcmd_filesize_t d = (libcmd_filesize_t)(t->year - 1970) * 365;
     int m;
     for (m = 0; m < t->month - 1 && m < 12; m++)
         d += mdays[m];
     d += t->day - 1;
-    return d * (off_t)86400 + (off_t)t->hour * 3600 + t->minute * 60 + t->second;
+    return d * (libcmd_filesize_t)86400 + (libcmd_filesize_t)t->hour * 3600 + t->minute * 60 + t->second;
 }
 
 static int entry_cmp(const void *a, const void *b)
@@ -152,10 +150,23 @@ static int hidden_filter(const libcmd_dirent_t *e)
     return 1;
 }
 
+/* Build the "dir_path/name" path of a listed entry, honouring a
+ * trailing separator in dir_path. */
+static void dir_entry_full_path(const char *dir_path, const char *name,
+                                char *out, size_t out_size)
+{
+    size_t dl = strlen(dir_path);
+
+    if (dl > 0 && dir_path[dl - 1] == '/')
+        libcmd_sprintf_s(out, out_size, "%s%s", dir_path, name);
+    else
+        libcmd_sprintf_s(out, out_size, "%s/%s", dir_path, name);
+}
+
 /* /P: pause every full screen when stdin is a terminal */
 static void maybe_pause(int *lines, const dir_opts_t *o)
 {
-    if (!o->pause || !isatty(0))
+    if (!o->pause || !libcmd_isatty(LIBCMD_STDIN_FILENO))
         return;
     if (++(*lines) >= 24) {
         *lines = 0;
@@ -187,8 +198,8 @@ static const libcmd_time_t *pick_time(const libcmd_dirent_t *e,
 
 static void dir_list_tree(const char *dir_path, const char *pattern,
                           const dir_opts_t *o, int *lines,
-                          off_t *tot_files, off_t *tot_size,
-                          off_t *tot_dirs)
+                          libcmd_filesize_t *tot_files, libcmd_filesize_t *tot_size,
+                          libcmd_filesize_t *tot_dirs)
 {
     libcmd_dir_t d;
     libcmd_dirent_t entry;
@@ -326,14 +337,20 @@ static void dir_list_tree(const char *dir_path, const char *pattern,
             print_time(tm, o);
 
             if (o->show_owner) {
-                struct passwd *pw = getpwuid((uid_t)e->uid);
-                printf("  %-10s", pw ? pw->pw_name : "?");
+                char full[CMD_MAX_PATH];
+                char owner[LIBCMD_NAME_MAX];
+
+                dir_entry_full_path(dir_path, e->name, full, sizeof(full));
+                if (libcmd_get_entry_owner(full, owner, sizeof(owner)) == 0)
+                    printf("  %-10s", owner);
+                else
+                    printf("  %-10s", "?");
             }
 
             if (e->is_dir)
                 printf("    <DIR>          %-s\n", e->name);
             else
-                printf("  %14ld %-s\n", (long)e->size, e->name);
+                printf("  %14lld %-s\n", (long long)e->size, e->name);
             maybe_pause(lines, o);
         }
     }
@@ -368,8 +385,8 @@ int builtin_dir(cmd_context_t *ctx, int argc, char **argv)
     libcmd_dirent_t entry;
     libcmd_dirent_t **entries = NULL;
     size_t entry_count = 0, entry_alloc = 0;
-    off_t total_size = 0;
-    off_t free_bytes = 0, total_bytes = 0;
+    libcmd_filesize_t total_size = 0;
+    libcmd_filesize_t free_bytes = 0, total_bytes = 0;
     int lines = 0;
 
     (void)ctx;
@@ -484,16 +501,16 @@ int builtin_dir(cmd_context_t *ctx, int argc, char **argv)
 
     /* /S: recursive listing */
     if (o.recur) {
-        off_t tot_files = 0, tot_size = 0, tot_dirs = 0;
+        libcmd_filesize_t tot_files = 0, tot_size = 0, tot_dirs = 0;
 
         dir_list_tree(dir_path, pattern, &o, &lines,
                       &tot_files, &tot_size, &tot_dirs);
 
         if (!o.bare) {
             printf("%s", cmd_gettext(MSG_INFO_TOTAL_FILES));
-            printf(cmd_gettext(MSG_INFO_FILES_TOTAL), (long)tot_files, (long)tot_size);
+            printf(cmd_gettext(MSG_INFO_FILES_TOTAL), (long)tot_files, (long long)tot_size);
             libcmd_get_disk_free(dir_path, &free_bytes, &total_bytes);
-            printf(cmd_gettext(MSG_INFO_DIRS_TOTAL), (long)tot_dirs, (long)free_bytes);
+            printf(cmd_gettext(MSG_INFO_DIRS_TOTAL), (long)tot_dirs, (long long)free_bytes);
         }
         return 0;
     }
@@ -615,26 +632,32 @@ int builtin_dir(cmd_context_t *ctx, int argc, char **argv)
             print_time(tm, &o);
 
             if (o.show_owner) {
-                struct passwd *pw = getpwuid((uid_t)e->uid);
-                printf("  %-10s", pw ? pw->pw_name : "?");
+                char full[CMD_MAX_PATH];
+                char owner[LIBCMD_NAME_MAX];
+
+                dir_entry_full_path(dir_path, e->name, full, sizeof(full));
+                if (libcmd_get_entry_owner(full, owner, sizeof(owner)) == 0)
+                    printf("  %-10s", owner);
+                else
+                    printf("  %-10s", "?");
             }
 
             if (e->is_dir) {
                 printf("    <DIR>          %-s\n", e->name);
                 dir_count++;
             } else {
-                printf("  %14ld %-s\n", (long)e->size, e->name);
+                printf("  %14lld %-s\n", (long long)e->size, e->name);
                 file_count++;
             }
             maybe_pause(&lines, &o);
         }
         /* Summary */
         printf(cmd_gettext(MSG_INFO_FILES_TOTAL),
-               (long)file_count, (long)total_size);
+               (long)file_count, (long long)total_size);
 
         libcmd_get_disk_free(dir_path, &free_bytes, &total_bytes);
         printf(cmd_gettext(MSG_INFO_DIRS_TOTAL),
-               (long)dir_count, (long)free_bytes);
+               (long)dir_count, (long long)free_bytes);
         (void)total_bytes;
     }
 

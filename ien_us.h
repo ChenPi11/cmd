@@ -82,8 +82,8 @@ static void lang_en_us_init(const char *table[MSG_COUNT])
     table[MSG_INFO_VERIFY_IS] = "VERIFY is %s\n";
     table[MSG_INFO_FILE_NOT_FOUND] = "File Not Found\n";
     table[MSG_INFO_DIRECTORY_OF] = " Directory of %s\n\n";
-    table[MSG_INFO_FILES_TOTAL] = "%16ld File(s) %14ld bytes\n";
-    table[MSG_INFO_DIRS_TOTAL] = "%16ld Dir(s)  %14ld bytes free\n";
+    table[MSG_INFO_FILES_TOTAL] = "%16ld File(s) %14lld bytes\n";
+    table[MSG_INFO_DIRS_TOTAL] = "%16ld Dir(s)  %14lld bytes free\n";
     table[MSG_INFO_TOTAL_FILES] = "\nTotal Files Listed:\n";
     table[MSG_INFO_COPY_DONE] = "        1 file(s) copied.\n";
     table[MSG_INFO_NO_PATH] = "No Path\n";

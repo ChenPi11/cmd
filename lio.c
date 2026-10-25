@@ -1,3 +1,4 @@
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
 /*
  * lio.c - low-level I/O operations
  *
@@ -81,3 +82,4 @@ FILE *libcmd_fdopen(int fd, const char *mode)
 {
     return fdopen(fd, mode);
 }
+#endif
