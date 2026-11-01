@@ -81,6 +81,9 @@ int libcmd_exec_sync(const char *path,
     int redirected;
     int i;
 
+    /* envp is ignored: the child inherits this process's environment. */
+    (void)envp;
+
     if (path == NULL)
         return -1;
 
@@ -92,12 +95,33 @@ int libcmd_exec_sync(const char *path,
     creation_flags = redirected ? CREATE_NO_WINDOW : 0;
     creation_flags |= win_priority_class(nice_level);
 
-    /* Build command line from argv */
+    /* Build the command line in the loader form (the way real cmd.exe
+     * spawns): lpApplicationName stays NULL and the first token is the
+     * resolved full path, argv[1..] follow with quoting for whitespace.
+     * The first token must be written without a leading space. */
     cmd_line[0] = '\0';
+    if (path != NULL) {
+        if (strchr(path, ' ') != NULL || strchr(path, '\t') != NULL) {
+            strcat(cmd_line, "\"");
+            strcat(cmd_line, path);
+            strcat(cmd_line, "\"");
+        } else {
+            strcat(cmd_line, path);
+        }
+    } else if (argv != NULL && argv[0] != NULL) {
+        if (strchr(argv[0], ' ') != NULL || strchr(argv[0], '\t') != NULL) {
+            strcat(cmd_line, "\"");
+            strcat(cmd_line, argv[0]);
+            strcat(cmd_line, "\"");
+        } else {
+            strcat(cmd_line, argv[0]);
+        }
+    }
     if (argv != NULL) {
         for (i = 0; argv[i] != NULL; i++) {
-            if (i > 0)
-                strcat(cmd_line, " ");
+            if (i == 0)
+                continue;   /*Already emitted as the first token above */
+            strcat(cmd_line, " ");
             /* Quote argument if it contains spaces */
             if (strchr(argv[i], ' ') != NULL || strchr(argv[i], '\t') != NULL) {
                 strcat(cmd_line, "\"");
@@ -124,9 +148,10 @@ int libcmd_exec_sync(const char *path,
 
     ZeroMemory(&pi, sizeof(pi));
 
-    /* Create process: inherit handles so the stdio mapping above
-     * reaches the child. */
-    if (!CreateProcessA(path, cmd_line, NULL, NULL, TRUE,
+    /* Create process: the loader form resolves the first token of the
+     * command line (our resolved full path); handles are inherited so
+     * the stdio mapping above reaches the child. */
+    if (!CreateProcessA(NULL, cmd_line, NULL, NULL, TRUE,
                         creation_flags, NULL, NULL, &si, &pi)) {
         return -1;
     }
@@ -163,6 +188,9 @@ int libcmd_exec_async(const char *path,
     char cmd_line[32768];
     DWORD creation_flags;
     int i;
+
+    /* envp is ignored: the child inherits this process's environment. */
+    (void)envp;
 
     if (path == NULL)
         return -1;

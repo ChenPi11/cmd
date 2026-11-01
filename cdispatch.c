@@ -183,6 +183,29 @@ static char **expand_wildcard_args(int argc, char **argv,
     return out;
 }
 
+/* Format the exec-failure reason, substituting the typed command for
+ * the "%1" insert placeholder.  System messages that name a program
+ * (e.g. bad-executable errors) contain "%1"; libcmd_strerror formats
+ * them without insert arguments, so the placeholder would show
+ * literally -- real cmd.exe fills the command token into that slot. */
+static const char *exec_error_text(const char *token)
+{
+    static char buf[512];
+    const char *msg = libcmd_strerror();
+    const char *pos = strstr(msg, "%1");
+    size_t keep;
+
+    if (pos == NULL)
+        return msg;
+    keep = (size_t)(pos - msg);
+    if (keep + strlen(pos) - 2 + strlen(token) >= sizeof(buf))
+        return msg;   /* does not fit; show the placeholder instead */
+    memcpy(buf, msg, keep);
+    strcpy(buf + keep, token);
+    strcat(buf, pos + 2);
+    return buf;
+}
+
 static int run_external(cmd_context_t *ctx,
                         int argc, char **argv,
                         int stdin_fd, int stdout_fd, int stderr_fd)
@@ -270,7 +293,7 @@ static int run_external(cmd_context_t *ctx,
 
     if (ret < 0) {
         fprintf(stderr, cmd_gettext(MSG_ERR_EXEC_FAILED),
-                argv[0], libcmd_strerror());
+                argv[0], exec_error_text(argv[0]));
         ret = 1;
     } else {
         ret = exit_info.exit_code;
