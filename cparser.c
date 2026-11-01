@@ -747,7 +747,9 @@ static int collect_pipe_stages(cmd_node_t *node, cmd_node_t **stages, int max)
 /* Rebuild a stage's token line for a "self /C <stage>" replay.  Tokens
  * that contain blanks get re-quoted; everything else passes verbatim
  * (the tokens were de-quoted when the line was first parsed).
- * Returns a malloc'd string, or NULL on allocation failure. */
+ * Returns a malloc'd string, or NULL on allocation failure.  Used
+ * only by the Windows pipeline path below. */
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
 static char *join_stage_line(char *const argv[])
 {
     size_t need;
@@ -784,6 +786,7 @@ static char *join_stage_line(char *const argv[])
     *w = '\0';
     return buf;
 }
+#endif /* Windows pipeline replays a fresh process per stage */
 
 static int exec_node_fds(cmd_context_t *ctx, cmd_node_t *node,
                          int stdin_fd, int stdout_fd, int stderr_fd)
@@ -830,7 +833,6 @@ static int exec_node_fds(cmd_context_t *ctx, cmd_node_t *node,
             char *joined = NULL;
             int pid;
             int wout;
-            int j;
 
             if (failed) {
                 if (fds[0] >= 0) libcmd_close(fds[0]);

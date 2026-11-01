@@ -13,11 +13,58 @@
 
 #include "ccontext.h"
 
-#include "ilanguages.h"
-
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/*
+ * msg_join - build one catalog message from several literal chunks.
+ *
+ * ISO C90 only obliges a compiler to accept 509-character string
+ * literals; several long help pages exceed that.  The generated
+ * language tables pass their chunks through this helper instead, so
+ * the chunks stay separate compile-time literals and are joined here
+ * once, at table-load time.  The result lives until the process ends
+ * (tables are built exactly once, at startup).
+ * Returns the joined string, or the first chunk when out of memory.
+ */
+static const char *msg_join(const char *first, ...)
+{
+    va_list ap;
+    const char *s;
+    size_t total;
+    char *out;
+    char *w;
+
+    va_start(ap, first);
+    s = first;
+    total = 1;
+    while (s != NULL) {
+        total += strlen(s);
+        s = va_arg(ap, const char *);
+    }
+    va_end(ap);
+
+    out = (char *)malloc(total);
+    if (out == NULL)
+        return first;
+    w = out;
+    va_start(ap, first);
+    s = first;
+    while (s != NULL) {
+        size_t n = strlen(s);
+
+        memcpy(w, s, n);
+        w += n;
+        s = va_arg(ap, const char *);
+    }
+    va_end(ap);
+    *w = '\0';
+    return out;
+}
+
+#include "ilanguages.h"
 
 static const char *table[MSG_COUNT];
 

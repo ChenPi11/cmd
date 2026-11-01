@@ -166,34 +166,36 @@ static void lang_en_us_init(const char *table[MSG_COUNT])
         "a prompt for a new one. Press ENTER to keep the same date.\n"
         "\n"
         "/T  Displays the current date without prompting for new date.\n";
-    table[MSG_HELP_DEL] =
-        "Deletes one or more files.\n"
-        "\n"
-        "DEL [/P] [/F] [/S] [/Q] [/A[[:attributes]]] names\n"
-        "ERASE [/P] [/F] [/S] [/Q] [/A[[:attributes]]] names\n"
-        "\n"
-        "  names     Specifies a list of one or more files or directories.\n"
-        "  /P        Prompts for confirmation before deleting each file.\n"
-        "  /F        Force deletion of read-only files.\n"
-        "  /S        Delete specified files from all subdirectories.\n"
-        "  /Q        Quiet mode, do not ask if ok to delete on global wildcard.\n"
-        "  /A        Selects files to delete based on attributes (D H R S A L,\n"
-        "            prefix - to exclude).\n";
-    table[MSG_HELP_DIR] =
-        "Displays a list of files and subdirectories in a directory.\n"
-        "\n"
-        "DIR [drive:][path][filename] [/B] [/D] [/L] [/N] [/O[sortorder]]\n"
-        "    [/P] [/Q] [/S] [/T[timefield]] [/W] [/X] [/4] [/A[attributes]]\n"
-        "\n"
-        "  /A   Displays files with specified attributes: D dirs, H hidden,\n"
-        "       R read-only, S system, A archive, L links (prefix - to exclude).\n"
-        "  /O   List by files in sorted order: N name, S size, E extension,\n"
-        "       D date/time, G group dirs first (prefix - to reverse).\n"
-        "  /T   Controls which time field displayed: C creation, A last access,\n"
-        "       W last written (default).\n"
-        "  /Q   Displays the owner of the file.\n"
-        "  /X   Displays the short names (not applicable on Unix).\n"
-        "  /4   Displays four-digit years (default).\n";
+    table[MSG_HELP_DEL] = msg_join(
+        "Deletes one or more files.\n",
+        "\n",
+        "DEL [/P] [/F] [/S] [/Q] [/A[[:attributes]]] names\n",
+        "ERASE [/P] [/F] [/S] [/Q] [/A[[:attributes]]] names\n",
+        "\n",
+        "  names     Specifies a list of one or more files or directories.\n",
+        "  /P        Prompts for confirmation before deleting each file.\n",
+        "  /F        Force deletion of read-only files.\n",
+        "  /S        Delete specified files from all subdirectories.\n",
+        "  /Q        Quiet mode, do not ask if ok to delete on global wildcard.\n",
+        "  /A        Selects files to delete based on attributes (D H R S A L,\n",
+        "            prefix - to exclude).\n",
+        (const char *)NULL);
+    table[MSG_HELP_DIR] = msg_join(
+        "Displays a list of files and subdirectories in a directory.\n",
+        "\n",
+        "DIR [drive:][path][filename] [/B] [/D] [/L] [/N] [/O[sortorder]]\n",
+        "    [/P] [/Q] [/S] [/T[timefield]] [/W] [/X] [/4] [/A[attributes]]\n",
+        "\n",
+        "  /A   Displays files with specified attributes: D dirs, H hidden,\n",
+        "       R read-only, S system, A archive, L links (prefix - to exclude).\n",
+        "  /O   List by files in sorted order: N name, S size, E extension,\n",
+        "       D date/time, G group dirs first (prefix - to reverse).\n",
+        "  /T   Controls which time field displayed: C creation, A last access,\n",
+        "       W last written (default).\n",
+        "  /Q   Displays the owner of the file.\n",
+        "  /X   Displays the short names (not applicable on Unix).\n",
+        "  /4   Displays four-digit years (default).\n",
+        (const char *)NULL);
     table[MSG_HELP_DOSKEY] =
         "Edits command lines, recalls Windows commands, and creates macros.\n"
         "\n"
@@ -396,26 +398,27 @@ static void lang_en_us_init(const char *table[MSG_COUNT])
         "Displays the disk volume label and serial number, if they exist.\n"
         "\n"
         "VOL [drive:]\n";
-    table[MSG_HELP_CMD] =
-        "Starts a new instance of the command interpreter.\n"
-        "\n"
-        "CMD [/C|/K] [/S] [/Q] [/D] [/A|/U] [/T:{<b><f>|<f>}]\n"
-        "    [/E:{ON|OFF}] [/F:{ON|OFF}] [/V:{ON|OFF}] [string]\n"
-        "\n"
-        "  /C  Execute the command specified by string and then exit.\n"
-        "  /K  Execute the command specified by string and keep running.\n"
-        "  /S  Modify treatment of string after /C or /K.\n"
-        "  /Q  Turn echo off.\n"
-        "  /D  Disable execution of AutoRun commands.\n"
-        "  /A  Output format: ANSI.\n"
-        "  /U  Output format: Unicode (not fully supported).\n"
-        "  /T:{<b><f>|<f>}  Sets the foreground/background colors.\n"
-        "  /E:ON   Enable command extensions (default).\n"
-        "  /E:OFF  Disable command extensions.\n"
-        "  /F:ON   Enable file and directory name completion.\n"
-        "  /F:OFF  Disable file and directory name completion (default).\n"
-        "  /V:ON   Enable delayed environment variable expansion.\n"
-        "  /V:OFF  Disable delayed environment variable expansion (default).\n"
-        "\n";
+    table[MSG_HELP_CMD] = msg_join(
+        "Starts a new instance of the command interpreter.\n",
+        "\n",
+        "CMD [/C|/K] [/S] [/Q] [/D] [/A|/U] [/T:{<b><f>|<f>}]\n",
+        "    [/E:{ON|OFF}] [/F:{ON|OFF}] [/V:{ON|OFF}] [string]\n",
+        "\n",
+        "  /C  Execute the command specified by string and then exit.\n",
+        "  /K  Execute the command specified by string and keep running.\n",
+        "  /S  Modify treatment of string after /C or /K.\n",
+        "  /Q  Turn echo off.\n",
+        "  /D  Disable execution of AutoRun commands.\n",
+        "  /A  Output format: ANSI.\n",
+        "  /U  Output format: Unicode (not fully supported).\n",
+        "  /T:{<b><f>|<f>}  Sets the foreground/background colors.\n",
+        "  /E:ON   Enable command extensions (default).\n",
+        "  /E:OFF  Disable command extensions.\n",
+        "  /F:ON   Enable file and directory name completion.\n",
+        "  /F:OFF  Disable file and directory name completion (default).\n",
+        "  /V:ON   Enable delayed environment variable expansion.\n",
+        "  /V:OFF  Disable delayed environment variable expansion (default).\n",
+        "\n",
+        (const char *)NULL);
 }
 #endif

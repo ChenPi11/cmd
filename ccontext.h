@@ -7,6 +7,20 @@
  * License: GNU GPLv3
  */
 
+/* POSIX host feature selection.  Must precede the first system header
+ * of every translation unit that includes it: the libc caches the
+ * feature decision when features.h first runs, so the request has to
+ * be in place before <stdio.h> below.  Matches the block in glibcmd.h
+ * (XSI level 2 plus the POSIX.1-2008 additions). */
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 600
+#endif
+#endif
+
 #include <stdio.h>
 #include <stddef.h>
 

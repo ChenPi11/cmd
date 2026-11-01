@@ -28,16 +28,14 @@
 static char *history_file = NULL;
 static int readline_initialized = 0;
 
-/* Callback invoked when a signal interrupts the terminal read. */
-static int (*libcmd_rl_signal_cb)(void) = NULL;
-
-/* -------------------------------------------------------------------------
- * Signal handling while the terminal read is in progress
- * ---------------------------------------------------------------------- */
-
+/* Callback invoked when a signal interrupts the terminal read.  The
+ * Windows back end detects Ctrl+C itself (its linenoise sets
+ * errno = EAGAIN), and cinterp consults the SIGINT handler state via
+ * the real signal path, so there is no signal-interrupted read here
+ * to ask the hook about: the hook is accepted and ignored. */
 void libcmd_readline_set_signal_hook(int (*hook)(void))
 {
-    libcmd_rl_signal_cb = hook;
+    (void)hook;
 }
 
 /* -------------------------------------------------------------------------

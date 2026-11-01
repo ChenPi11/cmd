@@ -1,3 +1,8 @@
+/* glibcmd.h first on every platform: the portable declarations come
+ * from it even when this guard compiles the file away entirely, and
+ * the translation unit then stays non-empty in ISO C90 (System V cc
+ * rejects empty preprocessed files). */
+#include "glibcmd.h"
 #if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
 /*
  * lsysport.c - system portability shims
@@ -17,7 +22,6 @@
  * License: GNU GPLv3
  */
 
-#include "glibcmd.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -178,16 +182,19 @@ int libcmd_fnmatch(const char *pattern, const char *string)
 int stime(const time_t *);
 #endif
 
+/* settimeofday(2) is BSD-borne, not XSI, and glibc hides it under a
+ * strict feature profile: the POSIX-C level way to set the system
+ * clock to a wall-clock time is clock_settime(CLOCK_REALTIME). */
 int libcmd_set_system_time(time_t t)
 {
 #if defined(LIBCMD_SYSV)
     return stime(&t);
 #else
-    struct timeval tv;
+    struct timespec ts;
 
-    tv.tv_sec  = t;
-    tv.tv_usec = 0;
-    return settimeofday(&tv, NULL);
+    ts.tv_sec  = t;
+    ts.tv_nsec = 0;
+    return clock_settime(CLOCK_REALTIME, &ts);
 #endif
 }
 
@@ -275,6 +282,8 @@ int libcmd_memstream_close(FILE *stream)
 
 #else
 
+/* open_memstream(3) is POSIX.1-2008; the _POSIX_C_SOURCE level in
+ * glibcmd.h/ccontext.h makes the libc declare it. */
 FILE *libcmd_open_memstream(char **ptr, size_t *sizeloc)
 {
     if (ptr)

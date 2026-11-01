@@ -1,5 +1,7 @@
+#if defined(_MSC_VER)
 #pragma comment(lib, "advapi32.lib")
 #pragma comment(lib, "shell32.lib")
+#endif
 #define _CRT_SECURE_NO_WARNINGS
 /*
  * lwfs.c - filesystem operations (Windows implementation)
@@ -49,6 +51,10 @@ static void finddata_to_libcmd(const WIN32_FIND_DATAA *fd,
                                libcmd_dirent_t *out)
 {
     ULONGLONG size;
+
+    /* Both parameters are only meaningful on the POSIX stat path;
+     * Windows find results carry just the name. */
+    (void)full_path;
 
     libcmd_sprintf_s(out->name, sizeof(out->name), "%s", fd->cFileName);
 
@@ -333,6 +339,10 @@ int libcmd_stat(const char *path, libcmd_stat_t *out, int follow_links)
 {
     struct __stat64 st;
     int ret;
+
+    /* _stat64 has no non-following pair on this platform, so links are
+     * always resolved; the parameter exists for API parity. */
+    (void)follow_links;
 
     if (path == NULL || out == NULL)
         return -1;

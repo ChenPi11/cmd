@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 
 /* History */
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
@@ -89,23 +90,11 @@ static void set_raw_mode(int enable)
     }
 }
 
-static int read_console_input(INPUT_RECORD *ir)
-{
-    DWORD count;
-    init_console();
-    return ReadConsoleInputA(hConsoleIn, ir, 1, &count) ? 1 : 0;
-}
-
 static void write_console(const char *str, int len)
 {
     DWORD written;
     init_console();
     WriteConsoleA(hConsoleOut, str, (DWORD)len, &written, NULL);
-}
-
-static void write_console_char(char c)
-{
-    write_console(&c, 1);
 }
 
 /* -------------------------------------------------------------------------
@@ -283,7 +272,6 @@ char *linenoise(const char *prompt)
         {
             KEY_EVENT_RECORD *ker = &ir.Event.KeyEvent;
             char ch = ker->uChar.AsciiChar;
-            DWORD ctrl = ker->dwControlKeyState;
 
             if (ch == '\r' || ch == '\n') {
                 /* Enter - return line */

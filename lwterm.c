@@ -42,9 +42,6 @@ static const int cmd_win32_color[16] = {
     15  /* BrightWhite -> FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_INTENSITY */
 };
 
-static int current_fg = 7;  /* Default: White */
-static int current_bg = 0;  /* Default: Black */
-
 int libcmd_isatty(int fd)
 {
     return _isatty(fd);
@@ -75,12 +72,10 @@ int libcmd_set_color(int fg, int bg)
     WORD attributes = 0;
 
     if (fg >= 0 && fg <= 15) {
-        current_fg = fg;
         attributes |= cmd_win32_color[fg] & 0x0F;
     }
 
     if (bg >= 0 && bg <= 15) {
-        current_bg = bg;
         attributes |= (cmd_win32_color[bg] & 0x0F) << 4;
     }
 

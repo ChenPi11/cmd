@@ -6,8 +6,9 @@
  *
  * This file may be included from both C89 and C11 code.  It is kept
  * C89-clean so it can be compiled against old System V headers, and
- * uses libcmd_filesize_t (off_t on Unix, __int64 on Windows) for file
- * sizes instead of the C99 long long type.
+ * uses libcmd_filesize_t (off_t on Unix; on MSVC __int64, on MinGW/
+ * Clang Windows long long, which -Wno-long-long acknowledges) for
+ * file sizes instead of the C99 long long type.
  *
  * License: GNU GPLv3
  */
@@ -15,6 +16,19 @@
 /* #include directives live outside the include guard: the AT&T C
  * Compiler's #ifndef handling is unreliable after a very long macro
  * expansion, which could defeat the guard. */
+
+/* POSIX host feature selection.  Requesting XSI level 2 (_XOPEN_SOURCE
+ * 600) before any system header makes the libc declare sigjmp_buf,
+ * symlink(), putenv() and the rest of the ported interface; the extra
+ * _POSIX_C_SOURCE level brings the POSIX.1-2008 additions
+ * (open_memstream(3)) in as well.  Windows targets keep their own
+ * path. */
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
+#define _XOPEN_SOURCE 600
+#endif
 
 #include <setjmp.h>
 #include <signal.h>
@@ -47,11 +61,15 @@
 /*
  * libcmd_filesize_t - exact byte counts for file sizes and disk
  * statistics.  MSVC's off_t is 32 bits, which would wrap for anything
- * over 2 GB, so Windows builds use __int64; Unix keeps off_t (64-bit on
- * the LP64 platforms this port targets).
+ * over 2 GB, so Windows builds need a 64-bit integer: MSVC provides
+ * __int64, MinGW/Clang provide long long (a documented compiler
+ * extension, accounted for with -Wno-long-long in the build).  Unix
+ * keeps off_t, 64-bit on the LP64 platforms this port targets.
  */
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#if defined(_MSC_VER)
 typedef __int64 libcmd_filesize_t;
+#elif defined(_WIN32) || defined(_WIN64)
+typedef long long libcmd_filesize_t;
 #else
 typedef off_t libcmd_filesize_t;
 #endif
