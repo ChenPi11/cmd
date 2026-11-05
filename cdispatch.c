@@ -183,6 +183,27 @@ static char **expand_wildcard_args(int argc, char **argv,
     return out;
 }
 
+/* Skip over the first token of a verbatim command text: stop at a
+ * blank outside a quoted range. */
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+/* Return the text after the first command word of S (the word is the
+ * leading quoted token or the first blank-delimited token). */
+static const char *skip_first_cmd_word(const char *s)
+{
+    if (*s == '"') {
+        s++;
+        while (*s != '\0' && *s != '"')
+            s++;
+        if (*s != '\0')
+            s++;
+    } else {
+        while (*s != '\0' && *s != ' ' && *s != '\t')
+            s++;
+    }
+    return s;
+}
+#endif
+
 /* Format the exec-failure reason, substituting the typed command for
  * the "%1" insert placeholder.  System messages that name a program
  * (e.g. bad-executable errors) contain "%1"; libcmd_strerror formats
@@ -208,7 +229,8 @@ static const char *exec_error_text(const char *token)
 
 static int run_external(cmd_context_t *ctx,
                         int argc, char **argv,
-                        int stdin_fd, int stdout_fd, int stderr_fd)
+                        int stdin_fd, int stdout_fd, int stderr_fd,
+                        const char *raw_text)
 {
     char exec_path[CMD_MAX_PATH];
     const char *path_env;
@@ -219,6 +241,13 @@ static int run_external(cmd_context_t *ctx,
     libcmd_glob_result_t saved[64];
     int nsaved = 0;
     int i;
+
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
+    /* POSIX runs externals from the argv array (quotes are argument
+     * structure there, not literal text), so the verbatim text is
+     * unused. */
+    (void)raw_text;
+#endif
 
     memset(saved, 0, sizeof(saved));
 
@@ -277,19 +306,40 @@ static int run_external(cmd_context_t *ctx,
         }
     }
 
-    /* Expand wildcards in arguments (cmd.exe semantics) */
-    exec_argv = expand_wildcard_args(argc, argv, saved, &nsaved);
-    if (exec_argv == NULL)
-        exec_argv = argv;
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+    if (raw_text != NULL) {
+        /* Faithful external spawn (real cmd.exe): the child command
+         * line is the resolved program path followed by the verbatim
+         * text of the statement minus the command word -- quotes
+         * intact, wildcards left untouched for the child, and the
+         * redirections already applied by the parent. */
+        const char *tail = skip_first_cmd_word(raw_text);
 
-    ret = libcmd_exec_sync(exec_path,
-                           exec_argv,
-                           libcmd_get_environ(),
-                           stdin_fd,
-                           stdout_fd,
-                           stderr_fd,
-                           0,
-                           &exit_info);
+        while (*tail == ' ' || *tail == '\t')
+            tail++;
+        if (*tail == '\0')
+            tail = NULL;
+
+        ret = libcmd_exec_sync_line(exec_path, tail,
+                                    stdin_fd, stdout_fd, stderr_fd,
+                                    &exit_info);
+    } else
+#endif
+    {
+        /* Expand wildcards in arguments (cmd.exe semantics) */
+        exec_argv = expand_wildcard_args(argc, argv, saved, &nsaved);
+        if (exec_argv == NULL)
+            exec_argv = argv;
+
+        ret = libcmd_exec_sync(exec_path,
+                               exec_argv,
+                               libcmd_get_environ(),
+                               stdin_fd,
+                               stdout_fd,
+                               stderr_fd,
+                               0,
+                               &exit_info);
+    }
 
     if (ret < 0) {
         fprintf(stderr, cmd_gettext(MSG_ERR_EXEC_FAILED),
@@ -313,7 +363,8 @@ static int run_external(cmd_context_t *ctx,
  * ---------------------------------------------------------------------- */
 
 int cmd_dispatch(cmd_context_t *ctx, int argc, char **argv,
-                 int stdin_fd, int stdout_fd, int stderr_fd)
+                 int stdin_fd, int stdout_fd, int stderr_fd,
+                 const char *raw_text)
 {
     const cmd_builtin_t *volatile builtin;
     int ret;
@@ -368,7 +419,8 @@ int cmd_dispatch(cmd_context_t *ctx, int argc, char **argv,
                 libcmd_chdir(saved_cwd);
         }
     } else {
-        ret = run_external(ctx, argc, argv, stdin_fd, stdout_fd, stderr_fd);
+        ret = run_external(ctx, argc, argv, stdin_fd, stdout_fd, stderr_fd,
+                           raw_text);
     }
 
     ctx->exit_code = ret;

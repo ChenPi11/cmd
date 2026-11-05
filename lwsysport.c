@@ -387,4 +387,17 @@ int libcmd_has_display(void)
     return 1;
 }
 
+/* -------------------------------------------------------------------------
+ * Raw command line
+ * ---------------------------------------------------------------------- */
+
+const char *libcmd_get_raw_cmdline(void)
+{
+    /* The exact text the OS delivered, before any CRT argv parsing:
+     * real cmd.exe takes its /C or /K string from this text, which
+     * keeps quoting such as `cmd /C "echo "a b""` intact where the
+     * CRT argv rules would fold the quotes away. */
+    return GetCommandLineA();
+}
+
 #endif

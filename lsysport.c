@@ -382,4 +382,16 @@ int libcmd_has_display(void)
         return 1;
     return 0;
 }
+
+/* -------------------------------------------------------------------------
+ * Raw command line
+ * ---------------------------------------------------------------------- */
+
+const char *libcmd_get_raw_cmdline(void)
+{
+    /* POSIX shells pass their arguments through execve argv[] only;
+     * there is no single raw command line to read.  cmain falls back
+     * to joining argv[]. */
+    return NULL;
+}
 #endif

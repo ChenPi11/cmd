@@ -196,7 +196,8 @@ int   cmd_print_dynamic_vars(cmd_context_t *ctx, const char *prefix);
 
 /* cdispatch.c */
 int cmd_dispatch(cmd_context_t *ctx, int argc, char **argv,
-                 int stdin_fd, int stdout_fd, int stderr_fd);
+                 int stdin_fd, int stdout_fd, int stderr_fd,
+                 const char *raw_text);
 const cmd_builtin_t *cmd_find_builtin(const char *name);
 
 /* cparser.c */

@@ -40,6 +40,48 @@ static HANDLE std_handle_for(int fd, DWORD std_slot)
     return GetStdHandle(std_slot);
 }
 
+/* Append one command character, tracking backslash runs. */
+static void cmd_append_char(char *dst, char c)
+{
+    size_t n = strlen(dst);
+    dst[n] = c;
+    dst[n + 1] = '\0';
+}
+
+/* Append src as one quoted command token using the CRT conventions:
+ * embedded quotes become \" (with every backslash before them
+ * doubled), and a trailing backslash run is doubled as well so it
+ * cannot escape the closing quote.  Replaces the old naive
+ * quote-and-paste which mis-parsed arguments with quotes in them
+ * (self /C pipeline replays lost the pattern quotes). */
+static void cmd_append_quoted_arg(char *dst, const char *src)
+{
+    const char *p;
+    int bs_since = 0;
+
+    strcat(dst, "\"");
+    for (p = src; *p != '\0'; p++) {
+        if (*p == '\\') {
+            bs_since++;
+            cmd_append_char(dst, '\\');
+            continue;
+        }
+        if (*p == '"') {
+            while (bs_since-- > 0)
+                cmd_append_char(dst, '\\');
+            cmd_append_char(dst, '\\');
+            cmd_append_char(dst, '"');
+            bs_since = 0;
+            continue;
+        }
+        bs_since = 0;
+        cmd_append_char(dst, *p);
+    }
+    while (bs_since-- > 0)
+        cmd_append_char(dst, '\\');
+    strcat(dst, "\"");
+}
+
 /* -------------------------------------------------------------------------
  * Public API
  * ---------------------------------------------------------------------- */
@@ -63,6 +105,84 @@ static DWORD win_priority_class(int nice_level)
     return 0;   /* NORMAL_PRIORITY_CLASS (the default) */
 }
 
+/* Append TOKEN to DST as one loader-form token, wrapped in quotes when
+ * it contains whitespace (a plain wrap, used for resolved paths and
+ * first tokens, which carry no quotes of their own). */
+static void append_path_token(char *dst, const char *token)
+{
+    if (strchr(token, ' ') != NULL || strchr(token, '\t') != NULL) {
+        strcat(dst, "\"");
+        strcat(dst, token);
+        strcat(dst, "\"");
+    } else {
+        strcat(dst, token);
+    }
+}
+
+/* Spawn CMD_LINE in the loader form, wait for its completion and fill
+ * EXIT_INFO.  The child's stdio slots follow the dup2 model: fd >= 0
+ * pins the child's stream onto the OS handle behind that CRT fd, fd < 0
+ * forwards this process's own standard handle.  CREATION_FLAGS must
+ * already carry the scheduling class and CREATE_NO_WINDOW when the
+ * child is redirected.  Returns 0, or -1 when the spawn or the wait
+ * failed. */
+static int spawn_and_wait(const char *cmd_line,
+                          DWORD creation_flags,
+                          int stdin_fd,
+                          int stdout_fd,
+                          int stderr_fd,
+                          libcmd_exit_info_t *exit_info)
+{
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    int redirected;
+    DWORD wait_result;
+    DWORD exit_code;
+
+    redirected = (stdin_fd >= 0 || stdout_fd >= 0 || stderr_fd >= 0);
+
+    /* fd >= 0 means "put the child's stream on the OS handle behind
+     * that CRT fd (POSIX dup2 semantics)" -- files and pipe ends
+     * opened/dup2'd by the caller keep working without any in-between
+     * pumping. */
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    if (redirected) {
+        si.hStdInput  = std_handle_for(stdin_fd,  STD_INPUT_HANDLE);
+        si.hStdOutput = std_handle_for(stdout_fd, STD_OUTPUT_HANDLE);
+        si.hStdError  = std_handle_for(stderr_fd, STD_ERROR_HANDLE);
+        si.dwFlags |= STARTF_USESTDHANDLES;
+    }
+
+    ZeroMemory(&pi, sizeof(pi));
+
+    /* Create process: the loader form resolves the first token of the
+     * command line; handles are inherited so the stdio mapping above
+     * reaches the child. */
+    if (!CreateProcessA(NULL, (char *)cmd_line, NULL, NULL, TRUE,
+                        creation_flags, NULL, NULL, &si, &pi)) {
+        return -1;
+    }
+
+    /* Wait for process to complete */
+    wait_result = WaitForSingleObject(pi.hProcess, INFINITE);
+    if (wait_result == WAIT_FAILED) {
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        return -1;
+    }
+
+    /* Get exit code */
+    GetExitCodeProcess(pi.hProcess, &exit_code);
+    fill_exit_info(exit_code, exit_info);
+
+    /* Cleanup */
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    return 0;
+}
+
 int libcmd_exec_sync(const char *path,
                      char *const argv[],
                      char *const envp[],
@@ -72,12 +192,8 @@ int libcmd_exec_sync(const char *path,
                      int nice_level,
                      libcmd_exit_info_t *exit_info)
 {
-    STARTUPINFOA si;
-    PROCESS_INFORMATION pi;
     char cmd_line[32768];
     DWORD creation_flags;
-    DWORD wait_result;
-    DWORD exit_code;
     int redirected;
     int i;
 
@@ -100,79 +216,57 @@ int libcmd_exec_sync(const char *path,
      * resolved full path, argv[1..] follow with quoting for whitespace.
      * The first token must be written without a leading space. */
     cmd_line[0] = '\0';
-    if (path != NULL) {
-        if (strchr(path, ' ') != NULL || strchr(path, '\t') != NULL) {
-            strcat(cmd_line, "\"");
-            strcat(cmd_line, path);
-            strcat(cmd_line, "\"");
-        } else {
-            strcat(cmd_line, path);
-        }
-    } else if (argv != NULL && argv[0] != NULL) {
-        if (strchr(argv[0], ' ') != NULL || strchr(argv[0], '\t') != NULL) {
-            strcat(cmd_line, "\"");
-            strcat(cmd_line, argv[0]);
-            strcat(cmd_line, "\"");
-        } else {
-            strcat(cmd_line, argv[0]);
-        }
-    }
+    append_path_token(cmd_line, path);
     if (argv != NULL) {
-        for (i = 0; argv[i] != NULL; i++) {
-            if (i == 0)
-                continue;   /*Already emitted as the first token above */
+        for (i = 1; argv[i] != NULL; i++) {
             strcat(cmd_line, " ");
-            /* Quote argument if it contains spaces */
-            if (strchr(argv[i], ' ') != NULL || strchr(argv[i], '\t') != NULL) {
-                strcat(cmd_line, "\"");
+            /* Quote any argument with spaces or embedded quotes */
+            if (strchr(argv[i], ' ') != NULL ||
+                strchr(argv[i], '\t') != NULL ||
+                strchr(argv[i], '"') != NULL)
+                cmd_append_quoted_arg(cmd_line, argv[i]);
+            else
                 strcat(cmd_line, argv[i]);
-                strcat(cmd_line, "\"");
-            } else {
-                strcat(cmd_line, argv[i]);
-            }
         }
     }
 
-    /* Initialize structures: fd >= 0 means "put the child's stream on
-     * the OS handle behind that CRT fd (POSIX dup2 semantics)" --
-     * files and pipe ends opened/dup2'd by the caller keep working
-     * without any in-between pumping. */
-    ZeroMemory(&si, sizeof(si));
-    si.cb = sizeof(si);
-    if (redirected) {
-        si.hStdInput  = std_handle_for(stdin_fd,  STD_INPUT_HANDLE);
-        si.hStdOutput = std_handle_for(stdout_fd, STD_OUTPUT_HANDLE);
-        si.hStdError  = std_handle_for(stderr_fd, STD_ERROR_HANDLE);
-        si.dwFlags |= STARTF_USESTDHANDLES;
-    }
+    return spawn_and_wait(cmd_line, creation_flags,
+                          stdin_fd, stdout_fd, stderr_fd, exit_info);
+}
 
-    ZeroMemory(&pi, sizeof(pi));
+/* libcmd_exec_sync_line - run one resolved command line synchronously,
+ * real cmd.exe style: the child's command line is PATH followed by
+ * TAIL verbatim -- the statement text minus its command word.  Quoted
+ * arguments, wildcard patterns and blank runs reach the child exactly
+ * as written (the parent applies redirections by dup2 and passes the
+ * open fd here, or -1 to forward its own handle). */
+int libcmd_exec_sync_line(const char *path,
+                          const char *tail,
+                          int stdin_fd,
+                          int stdout_fd,
+                          int stderr_fd,
+                          libcmd_exit_info_t *exit_info)
+{
+    char cmd_line[32768];
+    int redirected;
 
-    /* Create process: the loader form resolves the first token of the
-     * command line (our resolved full path); handles are inherited so
-     * the stdio mapping above reaches the child. */
-    if (!CreateProcessA(NULL, cmd_line, NULL, NULL, TRUE,
-                        creation_flags, NULL, NULL, &si, &pi)) {
+    if (path == NULL)
         return -1;
+
+    redirected = (stdin_fd >= 0 || stdout_fd >= 0 || stderr_fd >= 0);
+
+    /* While the stdio streams are redirected the child stays unseen;
+     * otherwise it shares this console so that its output is visible
+     * where the shell's own output goes. */
+    cmd_line[0] = '\0';
+    append_path_token(cmd_line, path);
+    if (tail != NULL && tail[0] != '\0') {
+        strcat(cmd_line, " ");
+        strcat(cmd_line, tail);
     }
 
-    /* Wait for process to complete */
-    wait_result = WaitForSingleObject(pi.hProcess, INFINITE);
-    if (wait_result == WAIT_FAILED) {
-        CloseHandle(pi.hProcess);
-        CloseHandle(pi.hThread);
-        return -1;
-    }
-
-    /* Get exit code */
-    GetExitCodeProcess(pi.hProcess, &exit_code);
-    fill_exit_info(exit_code, exit_info);
-
-    /* Cleanup */
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
-
-    return 0;
+    return spawn_and_wait(cmd_line, redirected ? CREATE_NO_WINDOW : 0,
+                          stdin_fd, stdout_fd, stderr_fd, exit_info);
 }
 
 int libcmd_exec_async(const char *path,
@@ -206,11 +300,11 @@ int libcmd_exec_async(const char *path,
         for (i = 0; argv[i] != NULL; i++) {
             if (i > 0)
                 strcat(cmd_line, " ");
-            if (strchr(argv[i], ' ') != NULL || strchr(argv[i], '\t') != NULL) {
-                strcat(cmd_line, "\"");
-                strcat(cmd_line, argv[i]);
-                strcat(cmd_line, "\"");
-            } else {
+            if (strchr(argv[i], ' ') != NULL ||
+                strchr(argv[i], '\t') != NULL ||
+                strchr(argv[i], '"') != NULL)
+                cmd_append_quoted_arg(cmd_line, argv[i]);
+            else {
                 strcat(cmd_line, argv[i]);
             }
         }
@@ -232,6 +326,62 @@ int libcmd_exec_async(const char *path,
                         (stdin_fd >= 0 || stdout_fd >= 0 || stderr_fd >= 0)
                             ? TRUE : FALSE,
                         creation_flags, NULL, NULL, &si, &pi)) {
+        return -1;
+    }
+
+    /* Close handles - process runs independently */
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    return (int)pi.dwProcessId;
+}
+
+/* libcmd_exec_async_line - spawn PATH with TAIL verbatim (the replayed
+ * statement text) and return without waiting.  Real cmd.exe replays
+ * each pipeline stage as `cmd /C <stage text>` with the stage's
+ * original quoting inlined UNESCAPED on the loader command line; the
+ * child reads its /C string back from the raw text, so no CRT escape
+ * layer may sit in between (crt argv rules would turn "find \"x\""
+ * into text the shell cannot re-quote faithfully). */
+int libcmd_exec_async_line(const char *path,
+                           const char *tail,
+                           int stdin_fd,
+                           int stdout_fd,
+                           int stderr_fd)
+{
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    char cmd_line[32768];
+
+    if (path == NULL)
+        return -1;
+
+    cmd_line[0] = '\0';
+    append_path_token(cmd_line, path);
+    if (tail != NULL && tail[0] != '\0') {
+        strcat(cmd_line, " ");
+        strcat(cmd_line, tail);
+    }
+
+    /* Initialize structures: fd >= 0 pins the child's stream onto the
+     * OS handle behind that CRT fd (dup2 model), fd < 0 forwards this
+     * process's own handle. */
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    if (stdin_fd >= 0 || stdout_fd >= 0 || stderr_fd >= 0) {
+        si.hStdInput  = std_handle_for(stdin_fd,  STD_INPUT_HANDLE);
+        si.hStdOutput = std_handle_for(stdout_fd, STD_OUTPUT_HANDLE);
+        si.hStdError  = std_handle_for(stderr_fd, STD_ERROR_HANDLE);
+        si.dwFlags |= STARTF_USESTDHANDLES;
+    }
+    ZeroMemory(&pi, sizeof(pi));
+
+    /* Create process in the loader form: lpApplicationName stays NULL
+     * and the first token of the command line is the resolved path. */
+    if (!CreateProcessA(NULL, cmd_line, NULL, NULL,
+                        (stdin_fd >= 0 || stdout_fd >= 0 || stderr_fd >= 0)
+                            ? TRUE : FALSE,
+                        0, NULL, NULL, &si, &pi)) {
         return -1;
     }
 

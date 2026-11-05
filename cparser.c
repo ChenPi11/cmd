@@ -69,6 +69,10 @@ struct cmd_node {
     int    argc;
     char **argv; /* NULL-terminated, argv[0] = command name */
     cmd_redir_t *redirs;
+    char *raw;   /* verbatim source slice of this stage (has the
+                  * original quoting); NULL when allocation failed --
+                  * used by the per-stage /C replay so quoted tokens
+                  * survive the round trip as real cmd.exe does */
 
     /* NODE_PIPE, NODE_AND, NODE_OR, NODE_SEQ, NODE_GROUP */
     cmd_node_t *left;
@@ -307,6 +311,7 @@ void cmd_node_free(cmd_node_t *node)
             free(node->argv[i]);
         free(node->argv);
     }
+    free(node->raw);
     free(node);
 }
 
@@ -426,6 +431,8 @@ static cmd_node_t *parse_cmd(lexer_t *l)
     char **args = NULL;
     int    argc = 0, alloc = 0;
     cmd_redir_t *redirs = NULL, **redir_tail = &redirs;
+    char raw_buf[CMD_MAX_LINE];
+    int  raw_len;
     int c;
 
     lexer_skip_spaces(l);
@@ -447,6 +454,14 @@ static cmd_node_t *parse_cmd(lexer_t *l)
     node = node_alloc(NODE_SIMPLE);
     if (node == NULL)
         return NULL;
+
+    /* Rebuild the stage's verbatim text for per-stage /C replays and
+     * external command lines: word segments are copied exactly as
+     * written (quotes intact), separators collapse to one space, and
+     * redirection parts are omitted -- real cmd.exe applies those in
+     * the parent, so the replayed text must not carry them. */
+    raw_buf[0] = '\0';
+    raw_len    = 0;
 
     for (;;) {
         cmd_redir_t *r;
@@ -522,6 +537,8 @@ static cmd_node_t *parse_cmd(lexer_t *l)
         if (c == '(' && argc > 0) {
             char paren_buf[CMD_MAX_LINE];
             int ppos = 0, depth = 0;
+            int seg_from = l->pos;
+
             lexer_get(l);           /* consume '(' */
             paren_buf[ppos++] = '(';
             depth = 1;
@@ -543,25 +560,45 @@ static cmd_node_t *parse_cmd(lexer_t *l)
                 args = tmp;
             }
             args[argc++] = w;
+            if (raw_len > 0)
+                raw_buf[raw_len++] = ' ';
+            if (raw_len + (l->pos - seg_from) < CMD_MAX_LINE) {
+                memcpy(raw_buf + raw_len, l->src + seg_from,
+                       (size_t)(l->pos - seg_from));
+                raw_len += l->pos - seg_from;
+            }
+            raw_buf[raw_len] = '\0';
             continue;
         }
 
         /* Regular word */
-        w = read_word(l);
-        if (w == NULL)
-            break;
+        {
+            int seg_from = l->pos;
 
-        if (argc >= alloc) {
-            char **tmp;
-            alloc = alloc ? alloc * 2 : 8;
-            tmp   = (char **)realloc(args, (size_t)(alloc + 1) * sizeof(char *));
-            if (tmp == NULL) {
-                free(w);
+            w = read_word(l);
+            if (w == NULL)
                 break;
+            if (raw_len > 0)
+                raw_buf[raw_len++] = ' ';
+            if (raw_len + (l->pos - seg_from) < CMD_MAX_LINE) {
+                memcpy(raw_buf + raw_len, l->src + seg_from,
+                       (size_t)(l->pos - seg_from));
+                raw_len += l->pos - seg_from;
             }
-            args = tmp;
+            raw_buf[raw_len] = '\0';
+
+            if (argc >= alloc) {
+                char **tmp;
+                alloc = alloc ? alloc * 2 : 8;
+                tmp   = (char **)realloc(args, (size_t)(alloc + 1) * sizeof(char *));
+                if (tmp == NULL) {
+                    free(w);
+                    break;
+                }
+                args = tmp;
+            }
+            args[argc++] = w;
         }
-        args[argc++] = w;
     }
 
     if (args)
@@ -570,6 +607,15 @@ static cmd_node_t *parse_cmd(lexer_t *l)
     node->argc  = argc;
     node->argv  = args;
     node->redirs = redirs;
+
+    /* Keep the verbatim stage text for the per-stage /C replays */
+    if (raw_len > 0) {
+        node->raw = (char *)malloc((size_t)raw_len + 1);
+        if (node->raw != NULL) {
+            memcpy(node->raw, raw_buf, (size_t)raw_len);
+            node->raw[raw_len] = '\0';
+        }
+    }
 
     if (argc == 0 && redirs == NULL) {
         cmd_node_free(node);
@@ -606,7 +652,8 @@ cmd_node_t *cmd_parse(const char *line)
  * The actual implementations are in cinterp.c and cdispatch.c.
  */
 extern int cmd_dispatch(cmd_context_t *ctx, int argc, char **argv,
-                        int stdin_fd, int stdout_fd, int stderr_fd);
+                        int stdin_fd, int stdout_fd, int stderr_fd,
+                        const char *raw_text);
 
 static int exec_simple(cmd_context_t *ctx, cmd_node_t *node,
                        int stdin_fd, int stdout_fd, int stderr_fd);
@@ -619,24 +666,36 @@ static int exec_simple(cmd_context_t *ctx, cmd_node_t *node,
     if (node == NULL || node->argc == 0)
         return 0;
     return cmd_dispatch(ctx, node->argc, node->argv,
-                        stdin_fd, stdout_fd, stderr_fd);
+                        stdin_fd, stdout_fd, stderr_fd, node->raw);
 }
 
-/* Windows maps the reserved device name NUL to the null device. */
+/* Map the shell's null target: POSIX hosts use /dev/null, Windows
+ * keeps the device name as typed (the CRT opens the NUL device). */
 static const char *redir_path(const char *file)
 {
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
     if (file && libcmd_strcasecmp(file, "nul") == 0)
         return "/dev/null";
+#else
+    (void)file;
+#endif
     return file;
 }
 
 /* Apply redirections of one node to the real standard fds (0/1/2).
  * Returns 0 on success, -1 on open failure (an error message is
  * printed).  Used for top-level redirections and inside pipeline
- * children, where the fds are dup2'd directly. */
+ * children, where the fds are dup2'd directly.
+ *
+ * Flush every buffered stream first: bytes written to fd 1/2 before
+ * the dup2 (the batch echo-trace, the prompt, leftovers from earlier
+ * commands) must land on the ORIGINAL handles, not be captured by
+ * the redirect or the pipe. */
 static int apply_redirs(cmd_redir_t *redirs)
 {
     cmd_redir_t *r;
+
+    fflush(NULL);
 
     for (r = redirs; r; r = r->next) {
         int fd = -1;
@@ -827,10 +886,13 @@ static int exec_node_fds(cmd_context_t *ctx, cmd_node_t *node,
          * CRT pipes.  Redirects attached to the stage nodes are not
          * carried over; the token line is replayed instead. */
         failed = 0;
+        /* Flush pending stdio before wiring pipes (batch traces etc.) */
+        fflush(NULL);
         for (i = 0; i < n; i++) {
             int fds[2] = { -1, -1 };
-            char *cargv[4];
-            char *joined = NULL;
+            const char *stage_text;
+            const char *self_path;
+            int owned;
             int pid;
             int wout;
 
@@ -850,24 +912,43 @@ static int exec_node_fds(cmd_context_t *ctx, cmd_node_t *node,
 
             fflush(NULL);
 
-            cargv[0] = (char *)libcmd_get_self_path();
-            if (cargv[0] == NULL || cargv[0][0] == '\0') {
+            self_path = libcmd_get_self_path();
+            if (self_path == NULL || self_path[0] == '\0') {
                 if (fds[0] >= 0) libcmd_close(fds[0]);
                 if (fds[1] >= 0) libcmd_close(fds[1]);
                 failed = 1;
                 continue;
             }
-            joined = join_stage_line(stages[i]->argv);
-            cargv[1] = (char *)"/C";
-            cargv[2] = joined;
-            cargv[3] = NULL;
 
-            pid = (joined != NULL)
-                      ? libcmd_exec_async(cargv[0], cargv,
-                                          libcmd_get_environ(), prev_read,
-                                          wout, stderr_fd, 0)
-                      : -1;
-            free(joined);
+            /* Real cmd.exe replays each stage as `cmd /C <stage text>`
+             * with the original quoting inlined and UNESCAPED (the
+             * child takes its /C string from the raw command line, so
+             * a CRT-escaped copy would bake `\"` into the text).  Fall
+             * back to the rebuilt token line only when no slice
+             * exists. */
+            owned = 0;
+            stage_text = stages[i]->raw;
+            if (stage_text == NULL) {
+                char *rebuilt = join_stage_line(stages[i]->argv);
+
+                if (rebuilt != NULL) {
+                    stage_text = rebuilt;
+                    owned = 1;
+                } else {
+                    stage_text = "";
+                }
+            }
+
+            {
+                char stage_line[CMD_MAX_LINE];
+
+                libcmd_sprintf_s(stage_line, sizeof(stage_line), "/C %s",
+                                 stage_text);
+                pid = libcmd_exec_async_line(self_path, stage_line,
+                                             prev_read, wout, stderr_fd);
+            }
+            if (owned)
+                free((char *)stage_text);
 
             if (pid < 0) {
                 if (fds[0] >= 0) libcmd_close(fds[0]);

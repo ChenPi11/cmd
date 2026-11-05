@@ -586,6 +586,25 @@ int libcmd_exec_sync(const char *path,
                      libcmd_exit_info_t *exit_info);
 
 /*
+ * libcmd_exec_sync_line - run one resolved command line synchronously,
+ * real cmd.exe style: the child's command line is PATH followed by
+ * TAIL verbatim -- the statement text minus its command word, with the
+ * original quoting intact.  The parent applies redirections itself and
+ * passes the open fds (dup2 model, -1 to forward its own handle).
+ * TAIL may be NULL.
+ * Windows implementation; the POSIX build keeps the argv form (above),
+ * where quotes are argument structure rather than literal text.
+ * On return, *exit_info is filled in.
+ * Returns 0 on success (child ran), -1 if spawn/wait failed.
+ */
+int libcmd_exec_sync_line(const char *path,
+                          const char *tail,
+                          int stdin_fd,
+                          int stdout_fd,
+                          int stderr_fd,
+                          libcmd_exit_info_t *exit_info);
+
+/*
  * libcmd_exec_async - fork and exec without waiting
  * nice_level: if non-zero, setpriority() is applied in the child.
  * Returns child PID on success, -1 on error.
@@ -603,6 +622,23 @@ int libcmd_exec_async(const char *path,
  * Returns 0 on success, -1 on error.
  */
 int libcmd_wait_pid(int pid, libcmd_exit_info_t *exit_info);
+
+/*
+ * libcmd_exec_async_line - spawn PATH with TAIL verbatim appended
+ * after the resolved path on the loader-form command line (no CRT
+ * quote escaping), and return without waiting.  Real cmd.exe replays
+ * each pipeline stage as `cmd /C <stage text>` with the stage's
+ * original quoting inlined, and the child reads its /C string back
+ * from the raw text; escaping the stage text would bake `\"` into it.
+ * stdin_fd/stdout_fd/stderr_fd follow the dup2 model (-1 to forward
+ * this process's own handle).  Returns the child PID, -1 on error.
+ * Windows implementation; POSIX keeps the argv form (above).
+ */
+int libcmd_exec_async_line(const char *path,
+                           const char *tail,
+                           int stdin_fd,
+                           int stdout_fd,
+                           int stderr_fd);
 
 /*
  * libcmd_exec_console - run argv in a newly opened console window,
@@ -739,6 +775,14 @@ void libcmd_init_self(const char *argv0);
  * or NULL if the path could not be determined.
  */
 const char *libcmd_get_self_path(void);
+
+/*
+ * libcmd_get_raw_cmdline - the process command line exactly as the OS
+ * delivered it, before CRT argv parsing.  Returns a pointer to an
+ * internal buffer (do not free or modify).  NULL on POSIX builds,
+ * where arguments exist only as the argv[] array.
+ */
+const char *libcmd_get_raw_cmdline(void);
 
 /* -------------------------------------------------------------------------
  * OS information (uname)
