@@ -1105,9 +1105,22 @@ int cmd_exec_node(cmd_context_t *ctx, cmd_node_t *node)
     if (apply_redirs(node->redirs) < 0) {
         ret = 1;
         ctx->exit_code = 1;
-    } else {
+    } else if (node->redirs != NULL) {
+        /* Something is redirected: 0/1/2 now pin the opened targets
+         * (dup2 model); pass them explicitly so the spawned children
+         * receive those handles through STARTF_USESTDHANDLES. */
         ret = exec_node_fds(ctx, node, LIBCMD_STDIN_FILENO,
                             LIBCMD_STDOUT_FILENO, LIBCMD_STDERR_FILENO);
+    } else {
+        /* Plain command: forward this process's own standard handles
+         * the way real cmd.exe spawns console children, without the
+         * STARTF_USESTDHANDLES form.  Passing 0/1/2 here instead
+         * builds explicit handle lists from raw CRT handles, and a
+         * console screen-buffer handle is not necessarily
+         * inheritable; such a child then starts with dead std slots
+         * and prints nothing (observed with ls/pacman run from a
+         * plain console). */
+        ret = exec_node_fds(ctx, node, -1, -1, -1);
     }
 
     /* Flush stdio buffers while the redirected fds are still in place.

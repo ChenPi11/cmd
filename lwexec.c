@@ -35,9 +35,23 @@ static void fill_exit_info(DWORD exit_code, libcmd_exit_info_t *info)
  * handle; fd < 0 forwards this process's own standard handle. */
 static HANDLE std_handle_for(int fd, DWORD std_slot)
 {
+    HANDLE h;
+
     if (fd >= 0)
-        return (HANDLE)_get_osfhandle(fd);
-    return GetStdHandle(std_slot);
+        h = (HANDLE)_get_osfhandle(fd);
+    else
+        h = GetStdHandle(std_slot);
+
+    /* STARTF_USESTDHANDLES hands the raw handle values to the child;
+     * a value without the inherit bit reaches the child as a dead
+     * slot and the child's output is simply lost.  Console
+     * screen-buffer handles in particular are not inheritable by
+     * default.  Force the flag on every source (errors are harmless:
+     * some pseudo-handles reject SetHandleInformation). */
+    if (h != NULL && h != INVALID_HANDLE_VALUE)
+        SetHandleInformation(h, HANDLE_FLAG_INHERIT,
+                             HANDLE_FLAG_INHERIT);
+    return h;
 }
 
 /* Append one command character, tracking backslash runs. */
