@@ -6,6 +6,8 @@
  * License: GNU GPLv3
  */
 
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "ccontext.h"
 #include "glibcmd.h"
 

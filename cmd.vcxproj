@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="bassoc.c" />
+    <ClCompile Include="bbreak.c" />
+    <ClCompile Include="bcall.c" />
+    <ClCompile Include="bcd.c" />
+    <ClCompile Include="bcls.c" />
+    <ClCompile Include="bcolor.c" />
+    <ClCompile Include="bcopy.c" />
+    <ClCompile Include="bdate.c" />
+    <ClCompile Include="bdel.c" />
+    <ClCompile Include="bdir.c" />
+    <ClCompile Include="bdoskey.c" />
+    <ClCompile Include="becho.c" />
+    <ClCompile Include="bendlocal.c" />
+    <ClCompile Include="bexit.c" />
+    <ClCompile Include="bfor.c" />
+    <ClCompile Include="bftype.c" />
+    <ClCompile Include="bgoto.c" />
+    <ClCompile Include="bif.c" />
+    <ClCompile Include="bmd.c" />
+    <ClCompile Include="bmklink.c" />
+    <ClCompile Include="bmove.c" />
+    <ClCompile Include="bpath.c" />
+    <ClCompile Include="bpause.c" />
+    <ClCompile Include="bpopd.c" />
+    <ClCompile Include="bprompt.c" />
+    <ClCompile Include="bpushd.c" />
+    <ClCompile Include="brd.c" />
+    <ClCompile Include="brem.c" />
+    <ClCompile Include="bren.c" />
+    <ClCompile Include="bset.c" />
+    <ClCompile Include="bsetlocal.c" />
+    <ClCompile Include="bshift.c" />
+    <ClCompile Include="bstart.c" />
+    <ClCompile Include="btime_cmd.c" />
+    <ClCompile Include="btitle.c" />
+    <ClCompile Include="btype.c" />
+    <ClCompile Include="bver.c" />
+    <ClCompile Include="bverify.c" />
+    <ClCompile Include="bvol.c" />
+    <ClCompile Include="cdispatch.c" />
+    <ClCompile Include="cinterp.c" />
+    <ClCompile Include="cmain.c" />
+    <ClCompile Include="cparser.c" />
+    <ClCompile Include="credir.c" />
+    <ClCompile Include="cvars.c" />
+    <ClCompile Include="ii18n.c" />
+    <ClCompile Include="lautorun.c" />
+    <ClCompile Include="lenv.c" />
+    <ClCompile Include="lexec.c" />
+    <ClCompile Include="lfs.c" />
+    <ClCompile Include="lio.c" />
+    <ClCompile Include="llinenoise.c" />
+    <ClCompile Include="lpath.c" />
+    <ClCompile Include="lreadline.c" />
+    <ClCompile Include="lselfpath.c" />
+    <ClCompile Include="lsprintf_s.c" />
+    <ClCompile Include="lsysport.c" />
+    <ClCompile Include="lterm.c" />
+    <ClCompile Include="ltime_util.c" />
+    <ClCompile Include="lutil.c" />
+    <ClCompile Include="lwautorun.c" />
+    <ClCompile Include="lwenv.c" />
+    <ClCompile Include="lwexec.c" />
+    <ClCompile Include="lwfs.c" />
+    <ClCompile Include="lwio.c" />
+    <ClCompile Include="lwlineno.c" />
+    <ClCompile Include="lwpath.c" />
+    <ClCompile Include="lwreadline.c" />
+    <ClCompile Include="lwselfpath.c" />
+    <ClCompile Include="lwsprnfs.c" />
+    <ClCompile Include="lwsysport.c" />
+    <ClCompile Include="lwterm.c" />
+    <ClCompile Include="lwtimeut.c" />
+    <ClCompile Include="lwutil.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ccontext.h" />
+    <ClInclude Include="glibcmd.h" />
+    <ClInclude Include="glinenoise.h" />
+    <ClInclude Include="ien_us.h" />
+    <ClInclude Include="ilanguages.h" />
+    <ClInclude Include="imessages.h" />
+    <ClInclude Include="izh_cn.h" />
+    <ClInclude Include="izh_ms.h" />
+    <ClInclude Include="izh_wy.h" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>18.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{5cb25067-9268-492f-8ec9-ab4222a921b3}</ProjectGuid>
+    <RootNamespace>cmd</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(SolutionDir)build\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)build\$(Platform)\$(Configuration)\obj</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(SolutionDir)build\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)build\$(Platform)\$(Configuration)\obj</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(SolutionDir)build\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)build\$(Platform)\$(Configuration)\obj</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(SolutionDir)build\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)build\$(Platform)\$(Configuration)\obj</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <Manifest>
+      <EnableSegmentHeap>true</EnableSegmentHeap>
+    </Manifest>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <Manifest>
+      <EnableSegmentHeap>true</EnableSegmentHeap>
+    </Manifest>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <Manifest>
+      <EnableSegmentHeap>true</EnableSegmentHeap>
+    </Manifest>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <Manifest>
+      <EnableSegmentHeap>true</EnableSegmentHeap>
+    </Manifest>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

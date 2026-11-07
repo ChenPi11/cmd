@@ -11,6 +11,8 @@
  * when a translation is not available (NULL) or the ID is out of range.
  */
 
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "ccontext.h"
 
 #include <stdarg.h>
