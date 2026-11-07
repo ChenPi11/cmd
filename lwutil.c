@@ -125,4 +125,6 @@ const char *libcmd_strerror(void)
     return buf;
 }
 
+#else
+int lwutil_c_dummy;
 #endif

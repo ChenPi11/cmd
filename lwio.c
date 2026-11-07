@@ -87,4 +87,6 @@ FILE *libcmd_fdopen(int fd, const char *mode)
     return _fdopen(fd, mode);
 }
 
+#else
+int lwio_c_dummy;
 #endif

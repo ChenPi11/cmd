@@ -60,4 +60,6 @@ const char *libcmd_get_self_path(void)
     return NULL;
 }
 
+#else
+int lwselfpath_c_dummy;
 #endif

@@ -337,4 +337,6 @@ int libcmd_exec_console(char *const argv[], char *const envp[])
     (void)envp;
     return -1;
 }
+#else
+int lexec_c_dummy;
 #endif

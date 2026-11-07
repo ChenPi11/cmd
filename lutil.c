@@ -109,4 +109,6 @@ const char *libcmd_strerror(void)
 {
     return strerror(errno);
 }
+#else
+int lutil_c_dummy;
 #endif

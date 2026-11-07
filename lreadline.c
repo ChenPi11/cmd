@@ -383,4 +383,6 @@ char *libcmd_readline(const char *prompt, char *buf, size_t size)
 
     return buf;
 }
+#else
+int lreadline_c_dummy;
 #endif

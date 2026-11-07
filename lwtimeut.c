@@ -46,4 +46,6 @@ int libcmd_random(void)
     return rand() % 32768;
 }
 
+#else
+int lwtimeut_c_dummy;
 #endif

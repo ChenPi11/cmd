@@ -311,7 +311,7 @@ static void lsysport_copy_field(char *dst, size_t dst_size, const char *src)
 {
 #if defined(__GNUC__)
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wformat-truncation"
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
 #endif
     strncpy(dst, src, dst_size - 1);
 #if defined(__GNUC__)
@@ -400,4 +400,6 @@ const char *libcmd_get_raw_cmdline(void)
      * to joining argv[]. */
     return NULL;
 }
+#else
+int lsysport_c_dummy;
 #endif

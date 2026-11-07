@@ -106,4 +106,6 @@ char **libcmd_get_environ(void)
     return NULL;
 }
 
+#else
+int lwenv_c_dummy;
 #endif

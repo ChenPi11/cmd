@@ -50,4 +50,6 @@ int libcmd_sprintf_s(char *buf, size_t size, const char *fmt, ...)
     return n;
 }
 
+#else
+int lwsprnfs_c_dummy;
 #endif

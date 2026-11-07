@@ -175,4 +175,6 @@ int libcmd_tty_ask_yn(const char *msg)
     return result;
 }
 
+#else
+int lwterm_c_dummy;
 #endif

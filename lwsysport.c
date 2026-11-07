@@ -400,4 +400,6 @@ const char *libcmd_get_raw_cmdline(void)
     return GetCommandLineA();
 }
 
+#else
+int lwsysport_c_dummy;
 #endif

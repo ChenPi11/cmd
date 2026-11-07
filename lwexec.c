@@ -708,4 +708,6 @@ int libcmd_pclose(FILE *stream)
     return _pclose(stream);
 }
 
+#else
+int lwexec_c_dummy;
 #endif

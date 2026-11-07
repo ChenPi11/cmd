@@ -52,4 +52,6 @@ int libcmd_random(void)
 {
     return rand() % 32768;
 }
+#else
+int ltime_util_c_dummy;
 #endif

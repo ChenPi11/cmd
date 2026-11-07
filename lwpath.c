@@ -247,4 +247,6 @@ char *libcmd_path_normalize(char *path)
     return path;
 }
 
+#else
+int lwpath_c_dummy;
 #endif

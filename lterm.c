@@ -189,4 +189,6 @@ int libcmd_tty_ask_yn(const char *msg)
     close(fd);
     return result;
 }
+#else
+int lterm_c_dummy;
 #endif

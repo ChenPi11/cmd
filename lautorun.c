@@ -123,4 +123,6 @@ cleanup:
     closedir(d);
     return ret;
 }
+#else
+int lautorun_c_dummy;
 #endif

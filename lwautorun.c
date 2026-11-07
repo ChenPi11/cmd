@@ -132,4 +132,6 @@ cleanup:
     return ret;
 }
 
+#else
+int lwautorun_c_dummy;
 #endif

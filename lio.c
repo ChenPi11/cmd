@@ -86,4 +86,6 @@ FILE *libcmd_fdopen(int fd, const char *mode)
 {
     return fdopen(fd, mode);
 }
+#else
+int lio_c_dummy;
 #endif

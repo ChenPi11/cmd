@@ -149,4 +149,6 @@ const char *libcmd_get_self_path(void)
 
     return NULL;
 }
+#else
+int lselfpath_c_dummy;
 #endif

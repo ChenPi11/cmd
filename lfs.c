@@ -599,4 +599,6 @@ int libcmd_get_disk_free(const char *path,
         *total_bytes = (libcmd_filesize_t)sv.f_blocks * (libcmd_filesize_t)sv.f_frsize;
     return 0;
 }
+#else
+int lfs_c_dummy;
 #endif

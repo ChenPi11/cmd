@@ -2446,4 +2446,6 @@ int linenoiseHistoryLoad(const char *filename) {
     fclose(fp);
     return 0;
 }
+#else
+int llinenoise_c_dummy;
 #endif

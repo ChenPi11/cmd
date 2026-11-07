@@ -152,4 +152,6 @@ char **libcmd_get_environ(void)
 {
     return environ;
 }
+#else
+int lenv_c_dummy;
 #endif

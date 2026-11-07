@@ -298,4 +298,6 @@ int libcmd_sprintf_s(char *buf, size_t size, const char *fmt, ...)
     va_end(ap);
     return n;
 }
+#else
+int lsprintf_s_c_dummy;
 #endif

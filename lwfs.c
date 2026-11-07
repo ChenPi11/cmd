@@ -583,4 +583,6 @@ int libcmd_get_disk_space(const char *path,
     return -1;
 }
 
+#else
+int lwfs_c_dummy;
 #endif
