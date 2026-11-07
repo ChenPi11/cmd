@@ -1,6 +1,6 @@
 #define _CRT_SECURE_NO_WARNINGS
 /*
- * lwtime_util.c - time and date utilities (Windows implementation)
+ * lwtimeut.c - time and date utilities (Windows implementation)
  *
  * License: GNU GPLv3
  */

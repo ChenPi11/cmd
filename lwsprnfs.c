@@ -1,6 +1,6 @@
 #define _CRT_SECURE_NO_WARNINGS
 /*
- * lwsprintf_s.c - safe sprintf implementation (Windows implementation)
+ * lwprnfs.c - safe sprintf implementation (Windows implementation)
  *
  * License: GNU GPLv3
  */
