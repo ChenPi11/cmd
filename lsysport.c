@@ -22,8 +22,9 @@
  * License: GNU GPLv3
  */
 
-
+#if defined(LIBCMD_SYSV)
 #include <errno.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -308,9 +309,10 @@ int libcmd_memstream_close(FILE *stream)
 
 static void lsysport_copy_field(char *dst, size_t dst_size, const char *src)
 {
-    memset(dst, 0, dst_size);
     if (src != NULL)
-        strncpy(dst, src, dst_size - 1);
+        snprintf(dst, dst_size, "%s", src);
+    else
+        dst[0] = '\0';
 }
 
 int libcmd_uname(libcmd_utsname_t *buf)
