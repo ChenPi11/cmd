@@ -309,10 +309,14 @@ int libcmd_memstream_close(FILE *stream)
 
 static void lsysport_copy_field(char *dst, size_t dst_size, const char *src)
 {
-    if (src != NULL)
-        snprintf(dst, dst_size, "%s", src);
-    else
-        dst[0] = '\0';
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+#endif
+    strncpy(dst, src, dst_size - 1);
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 }
 
 int libcmd_uname(libcmd_utsname_t *buf)
