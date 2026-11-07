@@ -69,7 +69,7 @@
 #if defined(_MSC_VER)
 typedef __int64 libcmd_filesize_t;
 #elif defined(_WIN32) || defined(_WIN64)
-typedef long long libcmd_filesize_t;
+typedef unsigned long libcmd_filesize_t;
 #else
 typedef off_t libcmd_filesize_t;
 #endif

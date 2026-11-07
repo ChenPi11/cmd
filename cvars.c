@@ -320,7 +320,7 @@ static char *expand_batch_arg_mod(cmd_context_t *ctx, const char *mods, int argn
                 if (opos > 0 && opos < (int)sizeof(out) - 1)
                     out[opos++] = ' ';
                 opos += libcmd_sprintf_s(out + opos, sizeof(out) - (size_t)opos,
-                                         "%lld", (long long)st.size);
+                                         "%lu", (unsigned long)st.size);
             }
             out[opos] = '\0';
             return libcmd_strdup(out);

@@ -350,7 +350,7 @@ static void dir_list_tree(const char *dir_path, const char *pattern,
             if (e->is_dir)
                 printf("    <DIR>          %-s\n", e->name);
             else
-                printf("  %14lld %-s\n", (long long)e->size, e->name);
+                printf("  %14lu %-s\n", (unsigned long)e->size, e->name);
             maybe_pause(lines, o);
         }
     }
@@ -508,9 +508,9 @@ int builtin_dir(cmd_context_t *ctx, int argc, char **argv)
 
         if (!o.bare) {
             printf("%s", cmd_gettext(MSG_INFO_TOTAL_FILES));
-            printf(cmd_gettext(MSG_INFO_FILES_TOTAL), (long)tot_files, (long long)tot_size);
+            printf(cmd_gettext(MSG_INFO_FILES_TOTAL), (long)tot_files, (unsigned long)tot_size);
             libcmd_get_disk_free(dir_path, &free_bytes, &total_bytes);
-            printf(cmd_gettext(MSG_INFO_DIRS_TOTAL), (long)tot_dirs, (long long)free_bytes);
+            printf(cmd_gettext(MSG_INFO_DIRS_TOTAL), (long)tot_dirs, (unsigned long)free_bytes);
         }
         return 0;
     }
@@ -646,18 +646,18 @@ int builtin_dir(cmd_context_t *ctx, int argc, char **argv)
                 printf("    <DIR>          %-s\n", e->name);
                 dir_count++;
             } else {
-                printf("  %14lld %-s\n", (long long)e->size, e->name);
+                printf("  %14lu %-s\n", (unsigned long)e->size, e->name);
                 file_count++;
             }
             maybe_pause(&lines, &o);
         }
         /* Summary */
         printf(cmd_gettext(MSG_INFO_FILES_TOTAL),
-               (long)file_count, (long long)total_size);
+               (long)file_count, (unsigned long)total_size);
 
         libcmd_get_disk_free(dir_path, &free_bytes, &total_bytes);
         printf(cmd_gettext(MSG_INFO_DIRS_TOTAL),
-               (long)dir_count, (long long)free_bytes);
+               (long)dir_count, (unsigned long)free_bytes);
         (void)total_bytes;
     }
 
