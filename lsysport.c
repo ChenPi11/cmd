@@ -324,12 +324,15 @@ int libcmd_memstream_close(FILE *stream)
 
 static void lsysport_copy_field(char *dst, size_t dst_size, const char *src)
 {
-#if defined(__GNUC__)
+    /* -Wstringop-truncation is a GCC-only warning group: clang defines
+     * __GNUC__ too and would report the pragma as an unknown option,
+     * so restrict the suppression to real GCC. */
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstringop-truncation"
 #endif
     strncpy(dst, src, dst_size - 1);
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
 }

@@ -267,6 +267,16 @@ typedef LONG (WINAPI *lw_rtl_get_version_t)(lw_osversioninfo_t *info);
 
 int libcmd_uname(libcmd_utsname_t *buf)
 {
+    /* GetProcAddress returns FARPROC, whose signature matches none of
+     * its clients.  A direct function-pointer cast trips GCC's
+     * -Wcast-function-type (part of -Wextra) and a void* hop trips
+     * GCC's -Wpedantic in both directions, so hand the pointer over
+     * through a union: no conversion happens, every compiler stays
+     * quiet. */
+    union {
+        FARPROC              proc;
+        lw_rtl_get_version_t getver;
+    } ptrconv;
     lw_osversioninfo_t vi;
     lw_rtl_get_version_t rtl_get_version;
     HMODULE ntdll;
@@ -283,8 +293,10 @@ int libcmd_uname(libcmd_utsname_t *buf)
     rtl_get_version = NULL;
     ntdll = GetModuleHandleA("ntdll.dll");
     if (ntdll != NULL)
-        rtl_get_version = (lw_rtl_get_version_t)GetProcAddress(ntdll,
-                                                              "RtlGetVersion");
+    {
+        ptrconv.proc = GetProcAddress(ntdll, "RtlGetVersion");
+        rtl_get_version = ptrconv.getver;
+    }
     memset(&vi, 0, sizeof(vi));
     if (rtl_get_version != NULL)
     {

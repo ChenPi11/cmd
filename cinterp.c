@@ -268,8 +268,10 @@ static void render_prompt(cmd_context_t *ctx, FILE *out)
             case 'h': {
                 /* Hostname (up to first dot) */
                 libcmd_utsname_t u;
+                const char *dot;
+
                 libcmd_uname(&u);
-                const char *dot = strchr(u.nodename, '.');
+                dot = strchr(u.nodename, '.');
                 if (dot)
                     fwrite(u.nodename, 1, dot - u.nodename, out);
                 else
@@ -314,12 +316,14 @@ static void render_prompt(cmd_context_t *ctx, FILE *out)
             }
             case 'd': {
                 /* Date in "Weekday Month Date" format */
-                libcmd_time_t t;
-                libcmd_get_local_time(&t);
                 static const char *days[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
                 static const char *months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
                                                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-                int wday = (int)t.wday;
+                libcmd_time_t t;
+                int wday;
+
+                libcmd_get_local_time(&t);
+                wday = (int)t.wday;
                 if (wday >= 0 && wday <= 6)
                     fprintf(out, "%s %s %02d", days[wday], months[t.month - 1], t.day);
                 break;
@@ -334,8 +338,10 @@ static void render_prompt(cmd_context_t *ctx, FILE *out)
             case 'T': {
                 /* Time in 12-hour HH:MM:SS format */
                 libcmd_time_t t;
+                int hour12;
+
                 libcmd_get_local_time(&t);
-                int hour12 = t.hour % 12;
+                hour12 = t.hour % 12;
                 if (hour12 == 0)
                     hour12 = 12;
                 fprintf(out, "%02d:%02d:%02d", hour12, t.minute, t.second);
@@ -351,8 +357,10 @@ static void render_prompt(cmd_context_t *ctx, FILE *out)
             case '@': {
                 /* Time in 12-hour am/pm format */
                 libcmd_time_t t;
+                int hour12;
+
                 libcmd_get_local_time(&t);
-                int hour12 = t.hour % 12;
+                hour12 = t.hour % 12;
                 if (hour12 == 0)
                     hour12 = 12;
                 fprintf(out, "%02d:%02d %s", hour12, t.minute, t.hour < 12 ? "am" : "pm");
