@@ -299,7 +299,7 @@ static void render_prompt(cmd_context_t *ctx, FILE *out)
                 break;
             }
             case 'V':
-                fputs("cmd 0.1.0", out);
+                fputs("cmd 1.0.0", out);
                 break;
             case '_':
                 fputc('\n', out);
