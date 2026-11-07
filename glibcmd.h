@@ -1075,9 +1075,10 @@ void libcmd_readline_set_file_completion(int on);
  * (excluding the trailing NUL) when the stream is closed with
  * libcmd_memstream_close().  The caller must free(*ptr) afterwards.
  *
- * On old System V targets the stream is backed by an anonymous
+ * On systems whose libc does not provide open_memstream(3) (System V,
+ * FreeBSD, macOS, Haiku, ...) the stream is backed by an anonymous
  * temporary file so the same interface keeps working without the
- * GNU extension.  Returns NULL on failure (errno set).
+ * POSIX.1-2008 extension.  Returns NULL on failure (errno set).
  */
 FILE *libcmd_open_memstream(char **ptr, size_t *sizeloc);
 

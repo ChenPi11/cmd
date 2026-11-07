@@ -16,8 +16,12 @@
  *   libcmd_fnmatch            fnmatch(3)                  vs  built-in matcher
  *   libcmd_set_system_time    settimeofday(2)             vs  stime(2)
  *   libcmd_set_process_priority setpriority(2)           vs  nice(2)
- *   libcmd_open_memstream     open_memstream(3) (GNU)     vs  tmpfile-backed
+ *   libcmd_open_memstream     open_memstream(3)           vs  tmpfile-backed
  *   libcmd_memstream_close
+ *
+ * open_memstream(3) is missing from many non-glibc systems as well
+ * (FreeBSD, macOS, Haiku, ...), so its fallback is the default and the
+ * native call is only used when LIBCMD_HAVE_OPEN_MEMSTREAM is defined.
  *
  * License: GNU GPLv3
  */
@@ -221,7 +225,18 @@ int libcmd_set_process_priority(int nice_level)
  * Memory streams
  * ---------------------------------------------------------------------- */
 
-#if defined(LIBCMD_SYSV)
+/*
+ * open_memstream(3) is POSIX.1-2008, but many otherwise POSIX systems
+ * (FreeBSD, macOS, Haiku, ...) never implemented it, so calling it
+ * unconditionally breaks their builds.  The tmpfile-backed fallback is
+ * therefore the default; build with -DLIBCMD_HAVE_OPEN_MEMSTREAM to
+ * select the native function where the libc is known to provide it.
+ */
+#if !defined(LIBCMD_HAVE_OPEN_MEMSTREAM) && defined(__GLIBC__)
+#define LIBCMD_HAVE_OPEN_MEMSTREAM 1
+#endif
+
+#if !defined(LIBCMD_HAVE_OPEN_MEMSTREAM)
 
 static FILE *ms_stream;     /* active memstream (single-stream use) */
 static char **ms_ptr;
@@ -283,8 +298,8 @@ int libcmd_memstream_close(FILE *stream)
 
 #else
 
-/* open_memstream(3) is POSIX.1-2008; the _POSIX_C_SOURCE level in
- * glibcmd.h/ccontext.h makes the libc declare it. */
+/* Native open_memstream(3); declared thanks to the _POSIX_C_SOURCE
+ * level requested in glibcmd.h. */
 FILE *libcmd_open_memstream(char **ptr, size_t *sizeloc)
 {
     if (ptr)
