@@ -166,8 +166,21 @@ void cmd_context_init(cmd_context_t *ctx)
     ctx->saved_stdout = -1;
     ctx->saved_stderr = -1;
 
-    /* Default prompt: $P$G */
-    libcmd_sprintf_s(ctx->prompt_string, sizeof(ctx->prompt_string), "$P$G");
+    /* Check for PROMPT environment variable (cmd.exe-style format string);
+     * if not set, setenv the default $P$G so child processes can see it */
+    {
+        const char *prompt_env = libcmd_getenv("PROMPT");
+        if (prompt_env)
+        {
+            libcmd_sprintf_s(ctx->prompt_string, sizeof(ctx->prompt_string), "%s", prompt_env);
+        }
+        else
+        {
+            const char *default_prompt = "$P$G";
+            libcmd_sprintf_s(ctx->prompt_string, sizeof(ctx->prompt_string), "%s", default_prompt);
+            libcmd_setenv("PROMPT", default_prompt, 1);
+        }
+    }
 
     /* Default install prefix */
     {
@@ -235,8 +248,137 @@ static void render_prompt(cmd_context_t *ctx, FILE *out)
 
     while (*p)
     {
-        if (*p == '$')
+        if (*p == '\\')
         {
+            /* Unix-style PS1 backslash sequences */
+            p++;
+            if (*p == '\0')
+                break;
+            switch (*p)
+            {
+            case 'u': {
+                /* Current username */
+                const char *user = libcmd_getenv("USER");
+                if (user)
+                    fputs(user, out);
+                else
+                    fputs("unknown", out);
+                break;
+            }
+            case 'h': {
+                /* Hostname (up to first dot) */
+                libcmd_utsname_t u;
+                libcmd_uname(&u);
+                const char *dot = strchr(u.nodename, '.');
+                if (dot)
+                    fwrite(u.nodename, 1, dot - u.nodename, out);
+                else
+                    fputs(u.nodename, out);
+                break;
+            }
+            case 'H': {
+                /* Full hostname */
+                libcmd_utsname_t u;
+                libcmd_uname(&u);
+                fputs(u.nodename, out);
+                break;
+            }
+            case 'w': {
+                /* Current working directory with ~ expansion */
+                const char *home = libcmd_getenv("HOME");
+                if (libcmd_getcwd(cwd, sizeof(cwd)))
+                {
+                    if (home && strncmp(cwd, home, strlen(home)) == 0)
+                    {
+                        fputc('~', out);
+                        fputs(cwd + strlen(home), out);
+                    }
+                    else
+                    {
+                        fputs(cwd, out);
+                    }
+                }
+                break;
+            }
+            case 'W': {
+                /* Current directory basename only */
+                if (libcmd_getcwd(cwd, sizeof(cwd)))
+                {
+                    const char *slash = strrchr(cwd, '/');
+                    if (slash)
+                        fputs(slash + 1, out);
+                    else
+                        fputs(cwd, out);
+                }
+                break;
+            }
+            case 'd': {
+                /* Date in "Weekday Month Date" format */
+                libcmd_time_t t;
+                libcmd_get_local_time(&t);
+                static const char *days[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+                static const char *months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+                int wday = (int)t.wday;
+                if (wday >= 0 && wday <= 6)
+                    fprintf(out, "%s %s %02d", days[wday], months[t.month - 1], t.day);
+                break;
+            }
+            case 't': {
+                /* Time in 24-hour HH:MM:SS format */
+                libcmd_time_t t;
+                libcmd_get_local_time(&t);
+                fprintf(out, "%02d:%02d:%02d", t.hour, t.minute, t.second);
+                break;
+            }
+            case 'T': {
+                /* Time in 12-hour HH:MM:SS format */
+                libcmd_time_t t;
+                libcmd_get_local_time(&t);
+                int hour12 = t.hour % 12;
+                if (hour12 == 0)
+                    hour12 = 12;
+                fprintf(out, "%02d:%02d:%02d", hour12, t.minute, t.second);
+                break;
+            }
+            case 'A': {
+                /* Time in 24-hour HH:MM format */
+                libcmd_time_t t;
+                libcmd_get_local_time(&t);
+                fprintf(out, "%02d:%02d", t.hour, t.minute);
+                break;
+            }
+            case '@': {
+                /* Time in 12-hour am/pm format */
+                libcmd_time_t t;
+                libcmd_get_local_time(&t);
+                int hour12 = t.hour % 12;
+                if (hour12 == 0)
+                    hour12 = 12;
+                fprintf(out, "%02d:%02d %s", hour12, t.minute, t.hour < 12 ? "am" : "pm");
+                break;
+            }
+            case 'n':
+                fputc('\n', out);
+                break;
+            case '\\':
+                fputc('\\', out);
+                break;
+            case '[':
+                fputs("\033[", out);
+                break;
+            case ']':
+                fputs("\033]", out);
+                break;
+            default:
+                fputc('\\', out);
+                fputc(*p, out);
+                break;
+            }
+        }
+        else if (*p == '$')
+        {
+            /* CMD.EXE-style $X sequences (for backward compatibility) */
             p++;
             if (*p == '\0')
                 break;
