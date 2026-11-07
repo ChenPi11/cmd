@@ -512,11 +512,12 @@ char *linenoise(const char *prompt)
 
     set_raw_mode(0);
 
-    if (len == 0) {
-        free(line);
-        return NULL;
-    }
-
+    /* Reaching here with len == 0 means an empty Enter: EOF is decided
+     * inside the key loop (Ctrl+D on an empty buffer) and ReadConsoleInput
+     * failure bails out there as well, none of which end up at this
+     * line.  An empty line must return "", never NULL: linenoise's NULL
+     * is the EOF/error signal and cmd_run_interactive quits the shell on
+     * it, while real cmd.exe just offers a fresh prompt. */
     return line;
 }
 
