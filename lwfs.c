@@ -90,7 +90,7 @@ char *libcmd_getcwd(char *buf, size_t size)
         char *tmp = (char *)malloc(alloc_size);
         if (tmp == NULL)
             return NULL;
-        if (_getcwd(tmp, alloc_size) == NULL) {
+        if (_getcwd(tmp, (int)alloc_size) == NULL) {
             free(tmp);
             return NULL;
         }

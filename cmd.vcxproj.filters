@@ -86,5 +86,9 @@
     <ClInclude Include="izh_cn.h" />
     <ClInclude Include="izh_ms.h" />
     <ClInclude Include="izh_wy.h" />
+    <ClInclude Include="resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="cmd.rc" />
   </ItemGroup>
 </Project>
