@@ -51,6 +51,37 @@ static int vt_processing = 0;
  * Internal helpers
  * ---------------------------------------------------------------------- */
 
+/* Resolve the current console-input handle.  The CRT's dup2/close
+ * bookkeeping around redirected commands can detach the handle that
+ * GetStdHandle handed out earlier (ReadConsoleInput then fails with
+ * ERROR_INVALID_HANDLE on some builds: the cached slot value goes
+ * dead while the console itself remains).  Probe the standard input
+ * slot on every call and fall back to opening CONIN$ directly when
+ * it no longer works. */
+static HANDLE ensure_console_input(void)
+{
+    HANDLE h;
+    DWORD mode;
+
+    h = GetStdHandle(STD_INPUT_HANDLE);
+    if (h != NULL && h != INVALID_HANDLE_VALUE && GetConsoleMode(h, &mode)) {
+        hConsoleIn = h;
+        return h;
+    }
+
+    h = CreateFileA("CONIN$",
+                    GENERIC_READ | GENERIC_WRITE,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE,
+                    NULL,
+                    OPEN_EXISTING, 0, NULL);
+    if (h != NULL && h != INVALID_HANDLE_VALUE) {
+        hConsoleIn = h;
+        return h;
+    }
+
+    return hConsoleIn;
+}
+
 static void init_console(void)
 {
     if (hConsoleIn == NULL) {
@@ -77,7 +108,8 @@ static void set_raw_mode(int enable)
 {
     DWORD mode;
 
-    init_console();
+    if (ensure_console_input() == NULL)
+        return;
 
     if (enable) {
         mode = originalConsoleMode;
@@ -109,7 +141,6 @@ static void write_console(const char *str, int len)
 int linenoiseHistoryAdd(const char *line)
 {
     char **new_history;
-    int new_len;
 
     if (history_max_len == 0)
         return 0;
@@ -117,15 +148,27 @@ int linenoiseHistoryAdd(const char *line)
     if (line == NULL || *line == '\0')
         return 0;
 
-    new_len = history_len + 1;
-    if (new_len > history_max_len)
-        new_len = history_max_len;
+    /* When the history is full, drop the oldest line and shift the
+     * remaining pointers left, so the new line lands inside the
+     * allocation.  Rewriting the array with realloc to a size clamped
+     * back at history_max_len and then storing history[history_len]
+     * writes one slot past the block once the history is full: a
+     * textbook heap overwrite that glibc-class allocators happen to
+     * swallow but MSVC's segment heap aborts on, which killed the
+     * shell right after the first command. */
+    if (history_len == history_max_len) {
+        free(history[0]);
+        memmove(history, history + 1,
+                sizeof(char *) * (size_t)(history_len - 1));
+        history_len--;
+    } else {
+        new_history = (char **)
+            realloc(history, sizeof(char *) * (size_t)(history_len + 1));
+        if (new_history == NULL)
+            return -1;
+        history = new_history;
+    }
 
-    new_history = (char **)realloc(history, sizeof(char *) * (size_t)new_len);
-    if (new_history == NULL)
-        return -1;
-
-    history = new_history;
     history[history_len] = libcmd_strdup(line);
     if (history[history_len] == NULL)
         return -1;
@@ -266,12 +309,21 @@ char *linenoise(const char *prompt)
 
     while (1) {
         if (!ReadConsoleInputA(hConsoleIn, &ir, 1, &count) || count == 0) {
-            set_raw_mode(0);
-            free(line);
-            return NULL;
+            /* Falling here usually means the console-input handle
+             * went stale (see ensure_console_input); refetch once and
+             * retry before giving up, so commands that ran children
+             * never take the editor down with them. */
+            if (!ensure_console_input() ||
+                !ReadConsoleInputA(hConsoleIn, &ir, 1, &count) ||
+                count == 0) {
+                set_raw_mode(0);
+                free(line);
+                return NULL;
+            }
         }
-
-        if (ir.EventType != KEY_EVENT || !ir.Event.KeyEvent.bKeyDown)
+        if (ir.EventType != KEY_EVENT)
+            continue;
+        if (!ir.Event.KeyEvent.bKeyDown)
             continue;
 
         {

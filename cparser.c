@@ -1097,9 +1097,9 @@ int cmd_exec_node(cmd_context_t *ctx, cmd_node_t *node)
         return 0;
 
     /* Save current fds */
-    old_stdin  = libcmd_dup(LIBCMD_STDIN_FILENO);
-    old_stdout = libcmd_dup(LIBCMD_STDOUT_FILENO);
-    old_stderr = libcmd_dup(LIBCMD_STDERR_FILENO);
+    old_stdin  = (node->redirs != NULL) ? libcmd_dup(LIBCMD_STDIN_FILENO)  : -1;
+    old_stdout = (node->redirs != NULL) ? libcmd_dup(LIBCMD_STDOUT_FILENO) : -1;
+    old_stderr = (node->redirs != NULL) ? libcmd_dup(LIBCMD_STDERR_FILENO) : -1;
 
     /* Apply any redirections on this node */
     if (apply_redirs(node->redirs) < 0) {
