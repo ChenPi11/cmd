@@ -1,0 +1,75 @@
+plugins {
+    id 'base'
+}
+
+description = 'A faithful reimplementation of the Windows cmd.exe command interpreter for Unix.'
+version = '0.1.0'
+
+defaultTasks 'build'
+
+// This build drives a GCC/Clang-style C compiler directly.  Gradle's native
+// plugins treat .c files as C++ and its software-model C plugin is deprecated,
+// so the sources are compiled in one invocation per binary.  Declared inputs
+// and outputs still give Gradle up-to-date checks.  MSVC is not supported by
+// this build file; see the CMake / Meson builds for that toolchain.
+def osName = System.getProperty('os.name').toLowerCase(Locale.ROOT)
+def ccCommand = (System.getenv('CC') ?: 'cc').split('\\s+').findAll { !it.isEmpty() }
+def cc = ccCommand.first()
+def windows = osName.contains('windows') || cc.toLowerCase(Locale.ROOT).contains('mingw')
+def windres = System.getenv('WINDRES') ?: 'windres'
+
+def cflags = (System.getenv('CFLAGS') ?: '-O3 -Wall -Wextra -Wpedantic').split('\\s+').findAll { !it.isEmpty() }
+def ldflags = (System.getenv('LDFLAGS') ?: '').split('\\s+').findAll { !it.isEmpty() }
+
+// Both personalities are built from the same sources.  COMMAND.COM is the
+// classic MS-DOS variant, which additionally executes AUTOEXEC.BAT.
+def cSources = fileTree(projectDir) {
+    include '*.c'
+}.files.sort { it.name }
+
+// On Windows the version-information resource is compiled in as well.
+def resourceFile = layout.buildDirectory.file('resources/cmd.res')
+
+def resourceTask = windows ? tasks.register('compileResource', Exec) {
+    group = 'build'
+    description = 'Compile the Windows version-information resource.'
+    inputs.files(file('cmd.rc'), file('resource.h'))
+    outputs.file(resourceFile)
+    workingDir = projectDir
+    doFirst {
+        resourceFile.get().asFile.parentFile.mkdirs()
+    }
+    commandLine(windres, '-O', 'coff', '-I', projectDir.absolutePath,
+            'cmd.rc', '-o', resourceFile.get().asFile.absolutePath)
+} : null
+
+def registerExecutable = { String taskName, String outputName, List<String> defines ->
+    def outputFile = layout.buildDirectory.file("bin/${outputName}")
+    tasks.register(taskName, Exec) {
+        group = 'build'
+        description = "Build ${outputName}."
+        inputs.files(cSources)
+        inputs.property('compiler', ccCommand.join(' '))
+        inputs.property('cflags', cflags.join(' '))
+        inputs.property('ldflags', ldflags.join(' '))
+        inputs.property('defines', defines.join(' '))
+        if (windows) {
+            inputs.file(resourceFile)
+            dependsOn resourceTask
+        }
+        outputs.file(outputFile)
+        doFirst {
+            outputFile.get().asFile.parentFile.mkdirs()
+        }
+        commandLine(ccCommand + cflags + defines.collect { "-D${it}" } + cSources +
+                (windows ? [resourceFile.get().asFile] : []) + ldflags +
+                ['-o', outputFile.get().asFile])
+    }
+}
+
+registerExecutable('cmd', 'cmd.exe', [])
+registerExecutable('COMMAND', 'COMMAND.COM', ['ENABLE_AUTOEXEC=1'])
+
+tasks.named('assemble') {
+    dependsOn 'cmd', 'COMMAND'
+}
