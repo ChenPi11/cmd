@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="COMMAND" />
+		<Option pch_mode="2" />
+		<Option compiler="clang" />
+		<Build>
+			<Target title="Debug">
+				<Option output="build/Debug/COMMAND" prefix_auto="1" extension_auto="1" />
+				<Option object_output="build/obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="clang" />
+				<Compiler>
+					<Add option="-g" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="build/Release/COMMAND" prefix_auto="1" extension_auto="1" />
+				<Option object_output="build/obj/Release/" />
+				<Option type="1" />
+				<Option compiler="clang" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add option="-DENABLE_AUTOEXEC=1" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Weverything" />
+		</Compiler>
+		<Unit filename="bassoc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bbreak.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bcall.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bcd.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bcls.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bcolor.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bcopy.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bdate.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bdel.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bdir.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bdoskey.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="becho.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bendlocal.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bexit.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bfor.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bftype.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bgoto.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bif.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bmd.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bmklink.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bmove.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bpath.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bpause.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bpopd.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bprompt.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bpushd.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="brd.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="brem.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bren.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bset.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bsetlocal.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bshift.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bstart.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="btime_cmd.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="btitle.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="btype.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bver.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bverify.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bvol.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="ccontext.h" />
+		<Unit filename="cdispatch.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cinterp.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cmain.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cmd.rc">
+			<Option compilerVar="WINDRES" />
+		</Unit>
+		<Unit filename="cparser.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="credir.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cvars.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="glibcmd.h" />
+		<Unit filename="glinenoise.h" />
+		<Unit filename="ien_us.h" />
+		<Unit filename="ii18n.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="ilanguages.h" />
+		<Unit filename="imessages.h" />
+		<Unit filename="izh_cn.h" />
+		<Unit filename="izh_ms.h" />
+		<Unit filename="izh_wy.h" />
+		<Unit filename="lautorun.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lenv.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lexec.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lfs.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lio.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="llinenoise.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lpath.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lreadline.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lselfpath.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lsprintf_s.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lsysport.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lterm.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="ltime_util.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lutil.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lwautorun.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lwenv.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lwexec.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lwfs.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lwio.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lwlineno.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lwpath.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lwreadline.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lwselfpath.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lwsprnfs.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lwsysport.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lwterm.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lwtimeut.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lwutil.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="resource.h" />
+		<Extensions>
+			<lib_finder disable_auto="1" />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>
