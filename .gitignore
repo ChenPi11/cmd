@@ -18,3 +18,7 @@ x64/
 [Dd]ebug/
 [Rr]elease/
 .vs/
+
+# Dev-Cpp
+Makefile.win
+*_private.*
