@@ -333,6 +333,32 @@ static int run_external(cmd_context_t *ctx,
         if (exec_argv == NULL)
             exec_argv = argv;
 
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
+        /* Windows batch files routinely pass paths with '\' separators
+         * to external programs.  On POSIX those are literal characters,
+         * so translate an argument when the translated form names an
+         * existing path (e.g. %APP_HOME%\gradle\wrapper\...jar).
+         * Arguments whose translated form does not exist (regular
+         * expressions, printf formats, ...) are left untouched. */
+        {
+            int j;
+            for (j = 1; exec_argv[j] != NULL; j++) {
+                char norm[CMD_MAX_PATH];
+                size_t len;
+
+                if (strchr(exec_argv[j], '\\') == NULL)
+                    continue;
+                len = strlen(exec_argv[j]);
+                if (len >= sizeof(norm))
+                    continue;
+                memcpy(norm, exec_argv[j], len + 1);
+                libcmd_path_norm_sep(norm);
+                if (libcmd_access(norm, 0) == 0)
+                    memcpy(exec_argv[j], norm, len + 1);
+            }
+        }
+#endif
+
         ret = libcmd_exec_sync(exec_path,
                                exec_argv,
                                libcmd_get_environ(),

@@ -30,6 +30,12 @@ extern char *cmd_expand_vars(cmd_context_t *ctx, const char *line);
  * value.  Used by FOR /F "tokens=..." where %i/%j/%k... map to tokens.
  * ---------------------------------------------------------------------- */
 
+static void append_str(char *buf, int *bpos, const char *s)
+{
+    while (*s && *bpos < CMD_MAX_LINE - 1)
+        buf[(*bpos)++] = *s++;
+}
+
 static int run_with_vars(cmd_context_t *ctx,
                          const char *cmd_template,
                          const char *letters,
@@ -41,30 +47,66 @@ static int run_with_vars(cmd_context_t *ctx,
 
     while (*p && bpos < CMD_MAX_LINE - 1) {
         if (*p == '%') {
+            const char *cand = p + 1;
             size_t k;
-            char next;
             int consumed = 0;
 
-            next = p[1];
-
-            /* Batch form: %%X (X uppercase) */
+            /* Batch form: %%X */
             if (p[1] == '%' && p[2] != '\0')
-                next = (char)toupper((unsigned char)p[2]);
+                cand = p + 2;
 
-            for (k = 0; letters[k]; k++) {
-                if ((char)toupper((unsigned char)next) ==
-                    (char)toupper((unsigned char)letters[k])) {
-                    const char *v = values[k];
-                    while (*v && bpos < CMD_MAX_LINE - 1)
-                        buf[bpos++] = *v++;
-                    consumed = (p[1] == '%' && p[2] != '\0') ? 3 : 2;
-                    break;
+            /* %~[modifiers]X - the loop variable is the last character
+             * of the run after '~', e.g. %%~fi is %~f applied to %i. */
+            if (*cand == '~') {
+                const char *run = cand + 1;
+                const char *end = run;
+
+                while (*end && isalnum((unsigned char)*end))
+                    end++;
+
+                if (end > run) {
+                    char varch = (char)toupper((unsigned char)end[-1]);
+
+                    for (k = 0; letters[k]; k++) {
+                        if (varch != (char)toupper((unsigned char)letters[k]))
+                            continue;
+                        {
+                            char mods[32];
+                            size_t mlen = (size_t)(end - run - 1);
+                            char *v;
+
+                            if (mlen >= sizeof(mods))
+                                mlen = sizeof(mods) - 1;
+                            memcpy(mods, run, mlen);
+                            mods[mlen] = '\0';
+
+                            v = cmd_apply_arg_modifiers(mods, values[k]);
+                            if (v) {
+                                append_str(buf, &bpos, v);
+                                free(v);
+                            }
+                        }
+                        p = end;
+                        consumed = 1;
+                        break;
+                    }
+                }
+            } else {
+                char varch = (char)toupper((unsigned char)*cand);
+
+                for (k = 0; letters[k]; k++) {
+                    if (varch == (char)toupper((unsigned char)letters[k])) {
+                        append_str(buf, &bpos, values[k]);
+                        p = cand + 1;
+                        consumed = 1;
+                        break;
+                    }
                 }
             }
-            if (consumed) {
-                p += consumed;
+
+            if (consumed)
                 continue;
-            }
+
             /* Not a loop variable; keep the '%' for cmd_run_line's own
              * expansion (e.g. %PATH% or a literal %%) */
             buf[bpos++] = '%';

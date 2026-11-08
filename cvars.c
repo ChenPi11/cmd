@@ -250,25 +250,15 @@ static char *apply_replace(const char *val, const char *str1, const char *str2)
  * Batch argument modifier expansion: %~[modifiers][digit]
  * ---------------------------------------------------------------------- */
 
-static char *expand_batch_arg_mod(cmd_context_t *ctx, const char *mods, int argnum)
+char *cmd_apply_arg_modifiers(const char *mods, const char *arg)
 {
-    const char *arg;
     char path[CMD_MAX_PATH];
     int has_f = 0, has_d = 0, has_p = 0, has_n = 0, has_x = 0;
     int has_s = 0, has_a = 0, has_t = 0, has_z = 0;
     const char *m;
 
-    /* Get the raw argument */
-    if (ctx->call_depth == 0)
+    if (arg == NULL)
         return libcmd_strdup("");
-
-    {
-        cmd_call_frame_t *frame = ctx->call_stack[ctx->call_depth - 1];
-        int idx = argnum + frame->shift_count;
-        if (idx < 0 || idx >= CMD_BATCH_ARGS || frame->args[idx] == NULL)
-            return libcmd_strdup("");
-        arg = frame->args[idx];
-    }
 
     if (mods == NULL || mods[0] == '\0')
         return libcmd_strdup(arg);
@@ -374,6 +364,25 @@ static char *expand_batch_arg_mod(cmd_context_t *ctx, const char *mods, int argn
     }
 
     return libcmd_strdup(arg);
+}
+
+static char *expand_batch_arg_mod(cmd_context_t *ctx, const char *mods, int argnum)
+{
+    const char *arg;
+
+    /* Get the raw argument */
+    if (ctx->call_depth == 0)
+        return libcmd_strdup("");
+
+    {
+        cmd_call_frame_t *frame = ctx->call_stack[ctx->call_depth - 1];
+        int idx = argnum + frame->shift_count;
+        if (idx < 0 || idx >= CMD_BATCH_ARGS || frame->args[idx] == NULL)
+            return libcmd_strdup("");
+        arg = frame->args[idx];
+    }
+
+    return cmd_apply_arg_modifiers(mods, arg);
 }
 
 /* Join all batch arguments (%1..%9) with single spaces into a new

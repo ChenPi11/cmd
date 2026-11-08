@@ -192,6 +192,7 @@ void cmd_endlocal(cmd_context_t *ctx);
 
 /* cvars.c */
 char *cmd_expand_vars(cmd_context_t *ctx, const char *line);
+char *cmd_apply_arg_modifiers(const char *mods, const char *arg);
 int   cmd_print_dynamic_vars(cmd_context_t *ctx, const char *prefix);
 
 /* cdispatch.c */

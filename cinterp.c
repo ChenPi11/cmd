@@ -184,6 +184,15 @@ void cmd_context_init(cmd_context_t *ctx)
         }
     }
 
+    /* cmd.exe always exports COMSPEC so batch files (and the Gradle
+     * wrapper's "%COMSPEC%" /c exit ...) can re-invoke this shell. */
+    if (libcmd_getenv("COMSPEC") == NULL)
+    {
+        const char *self_path = libcmd_get_self_path();
+        if (self_path != NULL && self_path[0] != '\0')
+            libcmd_setenv("COMSPEC", self_path, 1);
+    }
+
     /* Default install prefix */
     {
         const char *prefix_env = libcmd_getenv("CMD_PREFIX");
