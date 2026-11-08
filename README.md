@@ -79,6 +79,16 @@ even classic System V.
       <br/><sub><b>MSYS2</b></sub>
     </td>
   </tr>
+  <tr>
+    <td align="center">
+      <img src="owindows.png" alt="cmd running on Windows" height="150" />
+      <br/><sub><b>Windows</b></sub>
+    </td>
+    <td align="center">
+      <img src="olinux.png" alt="cmd running on Linux" height="150" />
+      <br/><sub><b>Linux</b></sub>
+    </td>
+  </tr>
 </table>
 
 ## Features
@@ -123,6 +133,69 @@ The source is STD C89 with no dependencies beyond a POSIX.1-1990 libc. On
 `tbuild.sh` adds the portability flags (`-DLIBCMD_SYSV=1` and
 `-DLIBCMD_NO_VSNPRINTF=1`) — see `lsysport.c`.
 Use SYSV=0 can disable `-DLIBCMD_SYSV=1`.
+
+### Supported Build Tools
+
+#### GNU Make
+
+```sh
+make -j$(nproc)
+# Or `gmake -j$(nproc)` on systems where GNU Make is invoked as `gmake`.
+```
+
+#### CMake
+
+```sh
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build .
+```
+
+#### MSBuild
+
+```sh
+msbuild cmd.sln /p:Configuration=Release
+```
+
+#### Gradle
+
+```sh
+./gradlew build
+# Or even ./cmd.exe /c "gradlew.bat build", but need replace
+# `bin\java.exe` to `bin\java`, and set `JAVA_HOME` (usually to /usr)
+```
+
+#### mcpp
+
+```sh
+mcpp build --release
+```
+
+#### Meson
+
+```sh
+meson setup build --buildtype=release
+meson compile -C build
+```
+
+#### XMake
+
+```sh
+xmake build
+```
+
+#### Our build.sh
+
+```sh
+sh tbuild.sh
+```
+
+### Supported IDEs
+
+- Visual Studio: `cmd.sln`, `COMMAND.sln`
+- Dev-Cpp: `cmd.dev`, `COMMAND.dev`
+- Code::Blocks: `cmd.cbp`, `COMMAND.cbp`
 
 ## Usage
 

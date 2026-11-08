@@ -76,6 +76,16 @@
       <br/><sub><b>MSYS2</b></sub>
     </td>
   </tr>
+  <tr>
+    <td align="center">
+      <img src="owindows.png" alt="cmd running on Windows" height="150" />
+      <br/><sub><b>Windows</b></sub>
+    </td>
+    <td align="center">
+      <img src="olinux.png" alt="cmd running on Linux" height="150" />
+      <br/><sub><b>Linux</b></sub>
+    </td>
+  </tr>
 </table>
 
 ## 特性
@@ -120,6 +130,69 @@ env SYSV=0 ./tbuild.sh       # 禁用 System V 移植性标志。
 `tbuild.sh` 会自动添加移植性标志（`-DLIBCMD_SYSV=1` 与
 `-DLIBCMD_NO_VSNPRINTF=1`）——详见 `lsysport.c`。
 设置 `SYSV=0` 可禁用 `-DLIBCMD_SYSV=1`。
+
+### 支持的构建工具
+
+#### GNU Make
+
+```sh
+make -j$(nproc)
+# 或在 GNU Make 被调用为 `gmake` 的系统上使用 `gmake -j$(nproc)`。
+```
+
+#### CMake
+
+```sh
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build .
+```
+
+#### MSBuild
+
+```sh
+msbuild cmd.sln /p:Configuration=Release
+```
+
+#### Gradle
+
+```sh
+./gradlew build
+# 或者原汤化原食的用 ./cmd.exe /c "gradlew.bat build"，但需要将
+# `bin\java.exe` 替换为 `bin\java`，并设置 `JAVA_HOME`（通常为 /usr）
+```
+
+#### mcpp
+
+```sh
+mcpp build --release
+```
+
+#### Meson
+
+```sh
+meson setup build --buildtype=release
+meson compile -C build
+```
+
+#### XMake
+
+```sh
+xmake build
+```
+
+#### 我们自己的 build.sh
+
+```sh
+sh tbuild.sh
+```
+
+### 支持的 IDE
+
+- Visual Studio: `cmd.sln`, `COMMAND.sln`
+- Dev-Cpp: `cmd.dev`, `COMMAND.dev`
+- Code::Blocks: `cmd.cbp`, `COMMAND.cbp`
 
 ## 用法
 
