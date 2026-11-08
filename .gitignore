@@ -1,4 +1,9 @@
 build/
+.gradle/
+.xmake/
+target/
+.mcpp/
+compile_commands.json
 .marscode/
 cmd-*
 *.o
@@ -9,3 +14,16 @@ a.out
 *.tar
 *.tar.uu
 *.tar.xz
+
+# Visual Studio: caches, per-user state, editor swaps and build output
+.vs/
+*.swp
+*.user
+x64/
+[Dd]ebug/
+[Rr]elease/
+.vs/
+
+# Dev-Cpp
+Makefile.win
+*_private.*

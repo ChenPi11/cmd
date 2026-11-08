@@ -10,6 +10,8 @@
  * License: GNU GPLv3
  */
 
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "ccontext.h"
 #include "glibcmd.h"
 
@@ -60,6 +62,150 @@ static int parse_color_nibble(char c)
     if (c >= 'a' && c <= 'f') return c - 'a' + 10;
     if (c >= 'A' && c <= 'F') return c - 'A' + 10;
     return -1;
+}
+
+/* Return a malloc'ed copy of the raw command line starting right after
+ * the flag token matched by ARGV[IDXP] (e.g. /C), or NULL when the raw
+ * line is unavailable or does not line up with the CRT argv.  Real
+ * cmd.exe takes its /C string from this text: launchers such as
+ * PowerShell pass arguments containing quotes unescaped
+ * ("echo Q=find "stdio" tail"), and the CRT argv rules fold those
+ * quotes away, losing them before the parser ever sees them. */
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+static char *raw_tail_after_flag(int argc, char **argv, int idxp)
+{
+    const char *raw = libcmd_get_raw_cmdline();
+    const char *p;
+    int i;
+
+    if (raw == NULL || idxp <= 0 || idxp >= argc)
+        return NULL;
+
+    /* Skip the argv[0] token, which may be quoted. */
+    p = raw;
+    if (*p == '"') {
+        p++;
+        while (*p != '\0' && *p != '"')
+            p++;
+        if (*p == '"')
+            p++;
+    }
+    while (*p != '\0' && *p != ' ' && *p != '\t')
+        p++;
+
+    /* Pair each flag token, argv[1 .. IDXP-1], with its raw-text
+     * counterpart; a mismatch means the two tokenizations diverge
+     * (quotes around flags or trailing junk), so fall back to the
+     * argv join.  The string itself (argv[IDXP..]) is never compared:
+     * raw quoting there is exactly what must be preserved. */
+    for (i = 1; i < idxp; i++) {
+        const char *tok;
+        size_t tlen;
+        size_t alen = strlen(argv[i]);
+
+        while (*p == ' ' || *p == '\t')
+            p++;
+        if (*p == '\0')
+            return NULL;
+
+        tok = p;
+        if (*p == '"') {
+            tok++;
+            p++;
+            while (*p != '\0' && *p != '"')
+                p++;
+            tlen = (size_t)(p - tok);
+            if (*p == '"')
+                p++;
+            /* A quoted flag with text glued after it re-merges into
+             * one argument only under rules argv may follow later;
+             * be conservative. */
+            if (*p != '\0' && *p != ' ' && *p != '\t')
+                return NULL;
+        } else {
+            while (*p != '\0' && *p != ' ' && *p != '\t')
+                p++;
+            tlen = (size_t)(p - tok);
+        }
+
+        if (tlen != alen || memcmp(tok, argv[i], alen) != 0)
+            return NULL;
+    }
+
+    while (*p == ' ' || *p == '\t')
+        p++;
+    return libcmd_strdup(p);
+}
+#endif
+
+/* Real cmd.exe quote handling for the /C (and /K) string, per its
+ * documented "modification to the /S and /C semantics": when the string
+ * begins with a quote, the first and the last quote character are
+ * removed (preserving any text after the last one) unless ALL of these
+ * hold at once: no /S switch, exactly two quote characters, no special
+ * characters between them (& < > ( ) @ ^ |), one or more whitespace
+ * characters between them, and the text between them names an existing
+ * executable file.  FORCE_STRIP is the /S switch. */
+static void apply_c_quote_rule(char *buf, int force_strip)
+{
+    const char *s;
+    char *lastq;
+    size_t len;
+    int n_quotes = 0;
+
+    if (buf == NULL || buf[0] != '"')
+        return;
+    len = strlen(buf);
+    if (len < 2)
+        return;
+
+    for (s = buf; *s != '\0'; s++)
+        if (*s == '"')
+            n_quotes++;
+
+    if (!force_strip && n_quotes == 2) {
+        const char *c;
+        const char *q2 = strchr(buf + 1, '"');
+        int ok_ws   = 0;
+        int ok_spec = 1;
+
+        if (q2 != NULL && q2 > buf + 1) {
+            size_t mlen = (size_t)(q2 - (buf + 1));
+
+            for (c = buf + 1; c != q2; c++) {
+                if (*c == ' ' || *c == '\t')
+                    ok_ws = 1;
+                else if (strchr("&<>()@^|", *c) != NULL)
+                    ok_spec = 0;
+            }
+            if (ok_ws && ok_spec) {
+                char exe[CMD_MAX_PATH];
+                char where[CMD_MAX_PATH];
+
+                if (mlen < sizeof(exe)) {
+                    memcpy(exe, buf + 1, mlen);
+                    exe[mlen] = '\0';
+                    if (libcmd_find_exec(exe, NULL, where,
+                                         sizeof(where)) == 0)
+                        return;   /* preserve the quote pair */
+                }
+            }
+        }
+    }
+
+    /* Strip the leading quote and the last quote on the line,
+     * keeping everything that sits between and after them. */
+    lastq = strrchr(buf, '"');
+    if (lastq != NULL && lastq != buf) {
+        /* Bytes between the leading quote and the last quote, then
+         * whatever followed the last quote. */
+        size_t nlead = (size_t)(lastq - buf) - 1;
+
+        memmove(buf, buf + 1, nlead);
+        memmove(buf + nlead, lastq + 1, strlen(lastq + 1) + 1);
+    } else {
+        memmove(buf, buf + 1, len);
+    }
 }
 
 static void parse_args(int argc, char **argv, cmd_opts_t *opts)
@@ -181,31 +327,39 @@ static void parse_args(int argc, char **argv, cmd_opts_t *opts)
 collect_string:
         /* Join remaining arguments as the command string */
         if (i < argc) {
-            /* Join all remaining args with spaces */
-            size_t total = 0;
-            int j;
-            char *buf;
+            char *buf = NULL;
 
-            for (j = i; j < argc; j++)
-                total += strlen(argv[j]) + 1;
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+            /* Preferred source: the raw OS command line.  Real cmd.exe
+             * takes the /C string from this text, and launchers such as
+             * PowerShell pass inner quotes unescaped ("echo x "y" z"),
+             * which the CRT argv rules fold away before the join.  The
+             * flag-token walk verifies the raw text lines up with the
+             * CRT argv before it is trusted. */
+            buf = raw_tail_after_flag(argc, argv, i);
+#endif
 
-            buf = (char *)malloc(total + 1);
-            if (buf) {
-                buf[0] = '\0';
-                for (j = i; j < argc; j++) {
-                    if (j > i) strcat(buf, " ");
-                    strcat(buf, argv[j]);
-                }
-                /* /s: strip surrounding quotes from the command string
-                 * (cmd.exe strips the outer quote pair of a /c string
-                 * when the whole string is quoted) */
-                if (opts->special_parse && buf[0] == '"') {
-                    size_t blen = strlen(buf);
-                    if (blen >= 2 && buf[blen - 1] == '"' && buf[1] != '"') {
-                        memmove(buf, buf + 1, blen - 2);
-                        buf[blen - 2] = '\0';
+            if (buf == NULL) {
+                /* Fall back to joining the CRT arguments with spaces. */
+                size_t total = 0;
+                int j;
+
+                for (j = i; j < argc; j++)
+                    total += strlen(argv[j]) + 1;
+
+                buf = (char *)malloc(total + 1);
+                if (buf) {
+                    buf[0] = '\0';
+                    for (j = i; j < argc; j++) {
+                        if (j > i) strcat(buf, " ");
+                        strcat(buf, argv[j]);
                     }
                 }
+            }
+
+            if (buf) {
+                /* cmd.exe /C quote handling (/S forces the strip). */
+                apply_c_quote_rule(buf, opts->special_parse);
                 opts->cmd_string = buf;
             }
             i = argc; /* consume remaining args */
@@ -330,8 +484,13 @@ int main(int argc, char **argv)
         /*
          * If the command string looks like a batch file path, run it directly.
          * Otherwise, run it as a command string.
+         *
+         * The string is used verbatim like cmd.exe's /C: normalising it
+         * as a path would turn every switch into "\switch".  A batch
+         * file given with '\' separators still resolves (the crt
+         * accepts either separator), and dispatch normalises the
+         * command name itself.
          */
-        libcmd_path_norm_sep(opts.cmd_string);
         {
             const char *ext = libcmd_path_ext(opts.cmd_string);
             if ((libcmd_strcasecmp(ext, ".bat") == 0 ||

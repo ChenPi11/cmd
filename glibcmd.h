@@ -6,8 +6,9 @@
  *
  * This file may be included from both C89 and C11 code.  It is kept
  * C89-clean so it can be compiled against old System V headers, and
- * uses off_t (from <sys/types.h>) for file sizes instead of the C99
- * long long type.
+ * uses libcmd_filesize_t (off_t on Unix; on MSVC __int64, on MinGW/
+ * Clang Windows long long, which -Wno-long-long acknowledges) for
+ * file sizes instead of the C99 long long type.
  *
  * License: GNU GPLv3
  */
@@ -16,6 +17,21 @@
  * Compiler's #ifndef handling is unreliable after a very long macro
  * expansion, which could defeat the guard. */
 
+/* POSIX host feature selection.  Requesting XSI level 2 (_XOPEN_SOURCE
+ * 600) before any system header makes the libc declare sigjmp_buf,
+ * symlink(), putenv() and the rest of the ported interface; the extra
+ * _POSIX_C_SOURCE level brings the POSIX.1-2008 additions
+ * (open_memstream(3)) in as well.  Windows targets keep their own
+ * path. */
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
+#define _XOPEN_SOURCE 600
+#endif
+
+#include <setjmp.h>
+#include <signal.h>
 #include <stddef.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -36,6 +52,26 @@
 #endif
 #ifndef S_ISLNK
 # define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
+#endif
+
+/* -------------------------------------------------------------------------
+ * File sizes
+ * ---------------------------------------------------------------------- */
+
+/*
+ * libcmd_filesize_t - exact byte counts for file sizes and disk
+ * statistics.  MSVC's off_t is 32 bits, which would wrap for anything
+ * over 2 GB, so Windows builds need a 64-bit integer: MSVC provides
+ * __int64, MinGW/Clang provide long long (a documented compiler
+ * extension, accounted for with -Wno-long-long in the build).  Unix
+ * keeps off_t, 64-bit on the LP64 platforms this port targets.
+ */
+#if defined(_MSC_VER)
+typedef __int64 libcmd_filesize_t;
+#elif defined(_WIN32) || defined(_WIN64)
+typedef unsigned long libcmd_filesize_t;
+#else
+typedef off_t libcmd_filesize_t;
 #endif
 
 #ifdef __cplusplus
@@ -82,6 +118,78 @@ typedef int libcmd_bool_t;
 #define LIBCMD_STDERR_FILENO 2
 
 /* -------------------------------------------------------------------------
+ * Signals
+ * ---------------------------------------------------------------------- */
+
+/*
+ * Portable signal numbers, for sources that must also compile where
+ * the raw macros are missing:
+ *
+ *   LIBCMD_SIGINT   ISO C, available everywhere
+ *   LIBCMD_SIGTSTP  job-control stop; never delivered on Windows
+ *   LIBCMD_SIGPIPE  never delivered on Windows (writes just fail)
+ *
+ * On POSIX hosts they are the plain <signal.h> values, so mixing them
+ * with e.g. readline hooks keeps its meaning there.
+ */
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#define LIBCMD_SIGINT   SIGINT
+#define LIBCMD_SIGTSTP  20
+#define LIBCMD_SIGPIPE  13
+#else
+#define LIBCMD_SIGINT   SIGINT
+#define LIBCMD_SIGTSTP  SIGTSTP
+#define LIBCMD_SIGPIPE  SIGPIPE
+#endif
+
+typedef void (*libcmd_sig_handler_t)(int);
+
+/*
+ * libcmd_sigaction - POSIX sigaction(2) subset.
+ *
+ * Only the handler is honoured: the signal mask is always kept empty
+ * and sa_flags is forced to 0 (no SA_RESTART), so interrupted blocking
+ * syscalls return EINTR like the interpreter expects.  act may be NULL
+ * to leave the disposition unchanged; when oldact is not NULL the
+ * previous handler is stored in it.
+ * On Windows SIGTSTP/SIGPIPE are recorded in a per-signal slot instead
+ * of calling signal(3), since neither exists there.
+ * Returns 0 on success, -1 on error.
+ */
+typedef struct libcmd_sigaction {
+    libcmd_sig_handler_t handler;
+} libcmd_sigaction_t;
+
+int libcmd_sigaction(int sig,
+                     const libcmd_sigaction_t *act,
+                     libcmd_sigaction_t *oldact);
+
+/*
+ * libcmd_reset_child_signals - restore default dispositions in a child
+ * process before running a foreign command (SIGINT/SIGTSTP/SIGPIPE get
+ * SIG_DFL).  A no-op for signals the host platform does not have.
+ */
+void libcmd_reset_child_signals(void);
+
+/*
+ * Portable setjmp/longjmp extension that also saves the signal mask on
+ * POSIX hosts:
+ *
+ *   libcmd_sigjmp_buf   context type (sigjmp_buf / jmp_buf)
+ *   libcmd_sigsetjmp()  save the context, like sigsetjmp(env, 1)
+ *   libcmd_siglongjmp() restore the context
+ */
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+typedef jmp_buf libcmd_sigjmp_buf;
+#define libcmd_sigsetjmp(env, save) setjmp((env))
+#define libcmd_siglongjmp(env, val) longjmp((env), (val))
+#else
+typedef sigjmp_buf libcmd_sigjmp_buf;
+#define libcmd_sigsetjmp(env, save) sigsetjmp((env), (save))
+#define libcmd_siglongjmp(env, val) siglongjmp((env), (val))
+#endif
+
+/* -------------------------------------------------------------------------
  * Time / date
  * ---------------------------------------------------------------------- */
 
@@ -104,7 +212,7 @@ typedef struct libcmd_stat {
     libcmd_bool_t is_dir;
     libcmd_bool_t is_link;
     libcmd_bool_t is_regular;
-    off_t         size;          /* bytes                               */
+    libcmd_filesize_t size;        /* bytes                               */
     libcmd_time_t mtime;
     libcmd_time_t atime;
     libcmd_time_t ctime;
@@ -121,7 +229,7 @@ typedef struct libcmd_dirent {
     char          name[LIBCMD_NAME_MAX];
     libcmd_bool_t is_dir;
     libcmd_bool_t is_link;
-    off_t         size;
+    libcmd_filesize_t size;
     libcmd_time_t mtime;
     libcmd_time_t atime;
     libcmd_time_t ctime;
@@ -196,7 +304,10 @@ char *libcmd_strtrim(char *s);
 /*
  * libcmd_getenv - get value of environment variable
  * Returns pointer into the environment or NULL if not found.
- * Do not modify or free the returned pointer.
+ * Do not modify or free the returned pointer.  The storage behind
+ * the pointer is refreshed by later libcmd_getenv calls (a small
+ * rotating pool keeps the most recent lookups valid); copy values
+ * that must survive several further lookups.
  */
 const char *libcmd_getenv(const char *name);
 
@@ -304,6 +415,49 @@ int libcmd_access(const char *path, int mode);
  * Returns 0 on success, -1 on error.
  */
 int libcmd_copy_file(const char *src, const char *dst, int overwrite);
+
+/*
+ * libcmd_get_entry_owner - look up the account that owns a filesystem
+ * entry (used by "dir /q" for the owner column).
+ *
+ * On Unix this resolves stat(path).st_uid through getpwuid(3); on
+ * Windows the entry's owner SID is turned into an account name with
+ * LookupAccountSid, producing the same wording as cmd.exe's "dir /q"
+ * (e.g. "BUILTIN\Administrators").
+ * name_buf receives the NUL-terminated account name.
+ * Returns 0 on success, -1 when the owner cannot be determined.
+ */
+int libcmd_get_entry_owner(const char *path, char *name_buf, size_t name_size);
+
+/*
+ * libcmd_is_executable_file - return 1 if path names a regular file the
+ * platform runs directly: on Unix a file with an execute bit set, on
+ * Windows a file with one of the executable extensions .com, .exe,
+ * .bat or .cmd (case-insensitive).  Returns 0 otherwise (errors too).
+ */
+int libcmd_is_executable_file(const char *path);
+
+/*
+ * libcmd_shell_open - open path the way the desktop would present it
+ * ("start <path>" for folders and documents): xdg-open(1) on Unix,
+ * ShellExecute on Windows (directory opens Explorer, documents open
+ * their default association).
+ * When wait is non-zero the call blocks until the started program (or
+ * its launcher) exits and fills *exit_info; otherwise it returns
+ * immediately and exit_info is untouched.
+ * Returns 0 on success, -1 on error.
+ */
+int libcmd_shell_open(const char *path, int wait,
+                      libcmd_exit_info_t *exit_info);
+
+/*
+ * libcmd_shell_open_n - libcmd_shell_open with a window state applied
+ * (START /MIN and /MAX).  n_show is one of the LIBCMD_SHOW_* values;
+ * Windows passes it to ShellExecute, Unix ignores it.
+ * Returns 0 on success, -1 on error.
+ */
+int libcmd_shell_open_n(const char *path, int wait,
+                        libcmd_exit_info_t *exit_info, int n_show);
 
 /* -------------------------------------------------------------------------
  * Directory iteration
@@ -432,6 +586,25 @@ int libcmd_exec_sync(const char *path,
                      libcmd_exit_info_t *exit_info);
 
 /*
+ * libcmd_exec_sync_line - run one resolved command line synchronously,
+ * real cmd.exe style: the child's command line is PATH followed by
+ * TAIL verbatim -- the statement text minus its command word, with the
+ * original quoting intact.  The parent applies redirections itself and
+ * passes the open fds (dup2 model, -1 to forward its own handle).
+ * TAIL may be NULL.
+ * Windows implementation; the POSIX build keeps the argv form (above),
+ * where quotes are argument structure rather than literal text.
+ * On return, *exit_info is filled in.
+ * Returns 0 on success (child ran), -1 if spawn/wait failed.
+ */
+int libcmd_exec_sync_line(const char *path,
+                          const char *tail,
+                          int stdin_fd,
+                          int stdout_fd,
+                          int stderr_fd,
+                          libcmd_exit_info_t *exit_info);
+
+/*
  * libcmd_exec_async - fork and exec without waiting
  * nice_level: if non-zero, setpriority() is applied in the child.
  * Returns child PID on success, -1 on error.
@@ -449,6 +622,67 @@ int libcmd_exec_async(const char *path,
  * Returns 0 on success, -1 on error.
  */
 int libcmd_wait_pid(int pid, libcmd_exit_info_t *exit_info);
+
+/*
+ * libcmd_exec_async_line - spawn PATH with TAIL verbatim appended
+ * after the resolved path on the loader-form command line (no CRT
+ * quote escaping), and return without waiting.  Real cmd.exe replays
+ * each pipeline stage as `cmd /C <stage text>` with the stage's
+ * original quoting inlined, and the child reads its /C string back
+ * from the raw text; escaping the stage text would bake `\"` into it.
+ * stdin_fd/stdout_fd/stderr_fd follow the dup2 model (-1 to forward
+ * this process's own handle).  Returns the child PID, -1 on error.
+ * Windows implementation; POSIX keeps the argv form (above).
+ */
+int libcmd_exec_async_line(const char *path,
+                           const char *tail,
+                           int stdin_fd,
+                           int stdout_fd,
+                           int stderr_fd);
+
+/*
+ * libcmd_exec_console - run argv in a newly opened console window,
+ * like cmd.exe's START without /B.  argv[0] is the command and the
+ * following entries its arguments; a NULL (or empty) argv opens a
+ * plain new console running the shell itself.
+ *
+ * Windows: the command is wrapped as "%COMSPEC% /D /C <args>" so
+ * external executables, builtins and batch files all work through one
+ * path.  envp is currently ignored (the child inherits the parent's
+ * environment).
+ * Unix: there is no "new console" concept, so this always returns -1;
+ * callers keep their own terminal-emulator fallback.
+ * Returns the child PID on success, -1 on error.
+ */
+int libcmd_exec_console(char *const argv[], char *const envp[]);
+
+/*
+ * Window state for new-console spawns and ShellExecute opens
+ * (START /MIN and /MAX).  The values mirror the Win32 SW_* constants
+ * that matter here so implementations can pass them through.
+ */
+#define LIBCMD_SHOW_NORMAL      1
+#define LIBCMD_SHOW_MINIMIZED   2
+#define LIBCMD_SHOW_MAXIMIZED   3
+
+/*
+ * libcmd_exec_console_ex - libcmd_exec_console with START's window
+ * state and scheduling level applied:
+ *   show_cmd  : LIBCMD_SHOW_NORMAL / _MINIMIZED / _MAXIMIZED (/MIN /MAX)
+ *   nice_level: the scheduling level builtin_start derives from
+ *               /LOW /BELOWNORMAL /NORMAL /ABOVENORMAL /HIGH /REALTIME;
+ *               0 (NORMAL) leaves the priority untouched.
+ * If argv[0] contains a directory separator it is treated as a
+ * resolved disk program and spawned directly (no COMSPEC wrapper:
+ * window state and priority then apply to the program itself, and
+ * GUI programs get no host console).
+ * Unix: both extra parameters are treated best-effort (the terminal
+ * emulator receives the nice level, the window state cannot be
+ * honoured), and libcmd_exec_console's fallback behaviour applies.
+ * Returns the child PID on success, -1 on error.
+ */
+int libcmd_exec_console_ex(char *const argv[], char *const envp[],
+                           int show_cmd, int nice_level);
 
 /*
  * libcmd_set_process_priority - set the calling process's scheduling
@@ -542,6 +776,50 @@ void libcmd_init_self(const char *argv0);
  */
 const char *libcmd_get_self_path(void);
 
+/*
+ * libcmd_get_raw_cmdline - the process command line exactly as the OS
+ * delivered it, before CRT argv parsing.  Returns a pointer to an
+ * internal buffer (do not free or modify).  NULL on POSIX builds,
+ * where arguments exist only as the argv[] array.
+ */
+const char *libcmd_get_raw_cmdline(void);
+
+/* -------------------------------------------------------------------------
+ * OS information (uname)
+ * ---------------------------------------------------------------------- */
+
+#define LIBCMD_UTSNAME_LEN 64
+
+/*
+ * libcmd_utsname - portable struct utsname.
+ * Every field is NUL-terminated; fields the platform cannot determine
+ * stay empty strings.  Like uname(2), buf->sysname[0]=='\0' therefore
+ * means "not filled in".
+ */
+typedef struct libcmd_utsname {
+    char sysname[LIBCMD_UTSNAME_LEN];   /* OS name, e.g. "Linux"      */
+    char nodename[LIBCMD_UTSNAME_LEN];  /* host name                  */
+    char release[LIBCMD_UTSNAME_LEN];   /* release, e.g. "6.6.0"      */
+    char version[LIBCMD_UTSNAME_LEN];   /* extra version information  */
+    char machine[LIBCMD_UTSNAME_LEN];   /* CPU type, e.g. "AMD64"     */
+} libcmd_utsname_t;
+
+/*
+ * libcmd_uname - fill *buf in with the operating system identity.
+ * buf is zeroed first, then filled from uname(2) (Unix) or
+ * ntdll!RtlGetVersion etc. (Windows); the whole call cannot fail on
+ * modern hosts, so "0" is always returned.
+ */
+int libcmd_uname(libcmd_utsname_t *buf);
+
+/*
+ * libcmd_has_display - return 1 when a graphical session is reachable
+ * (DISPLAY/Wayland on Unix).  Windows child processes always get their
+ * own console, so the concept does not apply and this maps to
+ * "always available".
+ */
+int libcmd_has_display(void);
+
 /* -------------------------------------------------------------------------
  * Terminal operations
  * ---------------------------------------------------------------------- */
@@ -581,6 +859,20 @@ int libcmd_set_title(const char *title);
  * Returns 0 on success, -1 on error.
  */
 int libcmd_get_terminal_size(int *cols, int *rows);
+
+/*
+ * libcmd_tty_ask_yn - print msg on the controlling terminal and read a
+ * single Y/N answer (a portable "Terminate batch job (Y/N)?").
+ *
+ * The message is written to, and the answer read from, the controlling
+ * terminal so the exchange works regardless of stdin/stdout
+ * redirection.  The terminal is put in cbreak mode: a single keypress
+ * answers immediately and every key pressed is echoed; keys other than
+ * Y/N make the question repeat.  When there is no controlling terminal
+ * the function returns 1 without prompting (non-interactive behaviour).
+ * Returns 1 for Y, 0 for N.
+ */
+int libcmd_tty_ask_yn(const char *msg);
 
 /* -------------------------------------------------------------------------
  * Path utilities
@@ -715,8 +1007,8 @@ int libcmd_get_volume_info(const char *path,
  * Returns 0 on success, -1 on error.
  */
 int libcmd_get_disk_free(const char *path,
-                         off_t *free_bytes,
-                         off_t *total_bytes);
+                         libcmd_filesize_t *free_bytes,
+                         libcmd_filesize_t *total_bytes);
 
 /* -------------------------------------------------------------------------
  * Error string
@@ -783,9 +1075,10 @@ void libcmd_readline_set_file_completion(int on);
  * (excluding the trailing NUL) when the stream is closed with
  * libcmd_memstream_close().  The caller must free(*ptr) afterwards.
  *
- * On old System V targets the stream is backed by an anonymous
+ * On systems whose libc does not provide open_memstream(3) (System V,
+ * FreeBSD, macOS, Haiku, ...) the stream is backed by an anonymous
  * temporary file so the same interface keeps working without the
- * GNU extension.  Returns NULL on failure (errno set).
+ * POSIX.1-2008 extension.  Returns NULL on failure (errno set).
  */
 FILE *libcmd_open_memstream(char **ptr, size_t *sizeloc);
 

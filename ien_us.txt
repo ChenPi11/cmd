@@ -291,11 +291,11 @@ MSG_INFO_DIRECTORY_OF
 ---
 
 MSG_INFO_FILES_TOTAL
- "%16ld File(s) %14ld bytes\n"
+ "%16ld File(s) %14lld bytes\n"
 ---
 
 MSG_INFO_DIRS_TOTAL
- "%16ld Dir(s)  %14ld bytes free\n"
+ "%16ld Dir(s)  %14lld bytes free\n"
 ---
 
 MSG_INFO_TOTAL_FILES

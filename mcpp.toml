@@ -1,0 +1,30 @@
+[package]
+name        = "cmd"
+version     = "0.1.0"
+description = "A faithful reimplementation of the Windows cmd.exe command interpreter for Unix."
+mcpp        = ">=2026.11.7.1"
+
+# Both personalities are built from the same C sources.  COMMAND.COM is the
+# classic MS-DOS variant, which additionally executes AUTOEXEC.BAT.
+# mcpp compiles shared sources once, so the entry file is the only place a
+# per-target define can take effect; cmain.c is the cmd.exe entry below and
+# mcpp/cmain_command.c is the COMMAND.COM entry.
+[build]
+c_standard  = "gnu11"
+include_dirs = ["."]
+sources     = ["*.c", "!cmain.c"]
+
+# On Windows the version-information resource is compiled in as well.
+[resources]
+files = ["cmd.rc"]
+
+# Target names carry the exact CMake output names; build.mcpp suppresses
+# mcpp's host-dependent executable suffix.
+[targets."cmd.exe"]
+kind = "bin"
+main = "cmain.c"
+
+[targets."COMMAND.COM"]
+kind = "bin"
+main = "mcpp/cmain_command.c"
+defines = ["ENABLE_AUTOEXEC=1"]

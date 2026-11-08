@@ -1,0 +1,94 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="bassoc.c" />
+    <ClCompile Include="bbreak.c" />
+    <ClCompile Include="bcall.c" />
+    <ClCompile Include="bcd.c" />
+    <ClCompile Include="bcls.c" />
+    <ClCompile Include="bcolor.c" />
+    <ClCompile Include="bcopy.c" />
+    <ClCompile Include="bdate.c" />
+    <ClCompile Include="bdel.c" />
+    <ClCompile Include="bdir.c" />
+    <ClCompile Include="bdoskey.c" />
+    <ClCompile Include="becho.c" />
+    <ClCompile Include="bendlocal.c" />
+    <ClCompile Include="bexit.c" />
+    <ClCompile Include="bfor.c" />
+    <ClCompile Include="bftype.c" />
+    <ClCompile Include="bgoto.c" />
+    <ClCompile Include="bif.c" />
+    <ClCompile Include="bmd.c" />
+    <ClCompile Include="bmklink.c" />
+    <ClCompile Include="bmove.c" />
+    <ClCompile Include="bpath.c" />
+    <ClCompile Include="bpause.c" />
+    <ClCompile Include="bpopd.c" />
+    <ClCompile Include="bprompt.c" />
+    <ClCompile Include="bpushd.c" />
+    <ClCompile Include="brd.c" />
+    <ClCompile Include="brem.c" />
+    <ClCompile Include="bren.c" />
+    <ClCompile Include="bset.c" />
+    <ClCompile Include="bsetlocal.c" />
+    <ClCompile Include="bshift.c" />
+    <ClCompile Include="bstart.c" />
+    <ClCompile Include="btime_cmd.c" />
+    <ClCompile Include="btitle.c" />
+    <ClCompile Include="btype.c" />
+    <ClCompile Include="bver.c" />
+    <ClCompile Include="bverify.c" />
+    <ClCompile Include="bvol.c" />
+    <ClCompile Include="cdispatch.c" />
+    <ClCompile Include="cinterp.c" />
+    <ClCompile Include="cmain.c" />
+    <ClCompile Include="cparser.c" />
+    <ClCompile Include="credir.c" />
+    <ClCompile Include="cvars.c" />
+    <ClCompile Include="ii18n.c" />
+    <ClCompile Include="lautorun.c" />
+    <ClCompile Include="lenv.c" />
+    <ClCompile Include="lexec.c" />
+    <ClCompile Include="lfs.c" />
+    <ClCompile Include="lio.c" />
+    <ClCompile Include="llinenoise.c" />
+    <ClCompile Include="lpath.c" />
+    <ClCompile Include="lreadline.c" />
+    <ClCompile Include="lselfpath.c" />
+    <ClCompile Include="lsprintf_s.c" />
+    <ClCompile Include="lsysport.c" />
+    <ClCompile Include="lterm.c" />
+    <ClCompile Include="ltime_util.c" />
+    <ClCompile Include="lutil.c" />
+    <ClCompile Include="lwautorun.c" />
+    <ClCompile Include="lwenv.c" />
+    <ClCompile Include="lwexec.c" />
+    <ClCompile Include="lwfs.c" />
+    <ClCompile Include="lwio.c" />
+    <ClCompile Include="lwlineno.c" />
+    <ClCompile Include="lwpath.c" />
+    <ClCompile Include="lwreadline.c" />
+    <ClCompile Include="lwselfpath.c" />
+    <ClCompile Include="lwsprnfs.c" />
+    <ClCompile Include="lwsysport.c" />
+    <ClCompile Include="lwterm.c" />
+    <ClCompile Include="lwtimeut.c" />
+    <ClCompile Include="lwutil.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ccontext.h" />
+    <ClInclude Include="glibcmd.h" />
+    <ClInclude Include="glinenoise.h" />
+    <ClInclude Include="ien_us.h" />
+    <ClInclude Include="ilanguages.h" />
+    <ClInclude Include="imessages.h" />
+    <ClInclude Include="izh_cn.h" />
+    <ClInclude Include="izh_ms.h" />
+    <ClInclude Include="izh_wy.h" />
+    <ClInclude Include="resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="cmd.rc" />
+  </ItemGroup>
+</Project>

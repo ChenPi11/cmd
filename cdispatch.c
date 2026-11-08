@@ -7,6 +7,8 @@
  * License: GNU GPLv3
  */
 
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "ccontext.h"
 #include "glibcmd.h"
 
@@ -17,7 +19,7 @@
 #include <string.h>
 
 /* sigsetjmp/siglongjmp support for interrupting builtins (defined in cinterp.c) */
-extern sigjmp_buf cmd_interrupt_env;
+extern libcmd_sigjmp_buf cmd_interrupt_env;
 extern volatile sig_atomic_t cmd_in_builtin;
 
 /* -------------------------------------------------------------------------
@@ -183,9 +185,54 @@ static char **expand_wildcard_args(int argc, char **argv,
     return out;
 }
 
+/* Skip over the first token of a verbatim command text: stop at a
+ * blank outside a quoted range. */
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+/* Return the text after the first command word of S (the word is the
+ * leading quoted token or the first blank-delimited token). */
+static const char *skip_first_cmd_word(const char *s)
+{
+    if (*s == '"') {
+        s++;
+        while (*s != '\0' && *s != '"')
+            s++;
+        if (*s != '\0')
+            s++;
+    } else {
+        while (*s != '\0' && *s != ' ' && *s != '\t')
+            s++;
+    }
+    return s;
+}
+#endif
+
+/* Format the exec-failure reason, substituting the typed command for
+ * the "%1" insert placeholder.  System messages that name a program
+ * (e.g. bad-executable errors) contain "%1"; libcmd_strerror formats
+ * them without insert arguments, so the placeholder would show
+ * literally -- real cmd.exe fills the command token into that slot. */
+static const char *exec_error_text(const char *token)
+{
+    static char buf[512];
+    const char *msg = libcmd_strerror();
+    const char *pos = strstr(msg, "%1");
+    size_t keep;
+
+    if (pos == NULL)
+        return msg;
+    keep = (size_t)(pos - msg);
+    if (keep + strlen(pos) - 2 + strlen(token) >= sizeof(buf))
+        return msg;   /* does not fit; show the placeholder instead */
+    memcpy(buf, msg, keep);
+    strcpy(buf + keep, token);
+    strcat(buf, pos + 2);
+    return buf;
+}
+
 static int run_external(cmd_context_t *ctx,
                         int argc, char **argv,
-                        int stdin_fd, int stdout_fd, int stderr_fd)
+                        int stdin_fd, int stdout_fd, int stderr_fd,
+                        const char *raw_text)
 {
     char exec_path[CMD_MAX_PATH];
     const char *path_env;
@@ -196,6 +243,13 @@ static int run_external(cmd_context_t *ctx,
     libcmd_glob_result_t saved[64];
     int nsaved = 0;
     int i;
+
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
+    /* POSIX runs externals from the argv array (quotes are argument
+     * structure there, not literal text), so the verbatim text is
+     * unused. */
+    (void)raw_text;
+#endif
 
     memset(saved, 0, sizeof(saved));
 
@@ -254,23 +308,70 @@ static int run_external(cmd_context_t *ctx,
         }
     }
 
-    /* Expand wildcards in arguments (cmd.exe semantics) */
-    exec_argv = expand_wildcard_args(argc, argv, saved, &nsaved);
-    if (exec_argv == NULL)
-        exec_argv = argv;
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+    if (raw_text != NULL) {
+        /* Faithful external spawn (real cmd.exe): the child command
+         * line is the resolved program path followed by the verbatim
+         * text of the statement minus the command word -- quotes
+         * intact, wildcards left untouched for the child, and the
+         * redirections already applied by the parent. */
+        const char *tail = skip_first_cmd_word(raw_text);
 
-    ret = libcmd_exec_sync(exec_path,
-                           exec_argv,
-                           libcmd_get_environ(),
-                           stdin_fd,
-                           stdout_fd,
-                           stderr_fd,
-                           0,
-                           &exit_info);
+        while (*tail == ' ' || *tail == '\t')
+            tail++;
+        if (*tail == '\0')
+            tail = NULL;
+
+        ret = libcmd_exec_sync_line(exec_path, tail,
+                                    stdin_fd, stdout_fd, stderr_fd,
+                                    &exit_info);
+    } else
+#endif
+    {
+        /* Expand wildcards in arguments (cmd.exe semantics) */
+        exec_argv = expand_wildcard_args(argc, argv, saved, &nsaved);
+        if (exec_argv == NULL)
+            exec_argv = argv;
+
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
+        /* Windows batch files routinely pass paths with '\' separators
+         * to external programs.  On POSIX those are literal characters,
+         * so translate an argument when the translated form names an
+         * existing path (e.g. %APP_HOME%\gradle\wrapper\...jar).
+         * Arguments whose translated form does not exist (regular
+         * expressions, printf formats, ...) are left untouched. */
+        {
+            int j;
+            for (j = 1; exec_argv[j] != NULL; j++) {
+                char norm[CMD_MAX_PATH];
+                size_t len;
+
+                if (strchr(exec_argv[j], '\\') == NULL)
+                    continue;
+                len = strlen(exec_argv[j]);
+                if (len >= sizeof(norm))
+                    continue;
+                memcpy(norm, exec_argv[j], len + 1);
+                libcmd_path_norm_sep(norm);
+                if (libcmd_access(norm, 0) == 0)
+                    memcpy(exec_argv[j], norm, len + 1);
+            }
+        }
+#endif
+
+        ret = libcmd_exec_sync(exec_path,
+                               exec_argv,
+                               libcmd_get_environ(),
+                               stdin_fd,
+                               stdout_fd,
+                               stderr_fd,
+                               0,
+                               &exit_info);
+    }
 
     if (ret < 0) {
         fprintf(stderr, cmd_gettext(MSG_ERR_EXEC_FAILED),
-                argv[0], libcmd_strerror());
+                argv[0], exec_error_text(argv[0]));
         ret = 1;
     } else {
         ret = exit_info.exit_code;
@@ -290,7 +391,8 @@ static int run_external(cmd_context_t *ctx,
  * ---------------------------------------------------------------------- */
 
 int cmd_dispatch(cmd_context_t *ctx, int argc, char **argv,
-                 int stdin_fd, int stdout_fd, int stderr_fd)
+                 int stdin_fd, int stdout_fd, int stderr_fd,
+                 const char *raw_text)
 {
     const cmd_builtin_t *volatile builtin;
     int ret;
@@ -305,11 +407,15 @@ int cmd_dispatch(cmd_context_t *ctx, int argc, char **argv,
     builtin = cmd_find_builtin(argv[0]);
     if (builtin != NULL) {
         /* Convert Windows-style '\' separators to '/' in every builtin
-         * argument, so paths like \usr\bin work everywhere. */
+         * argument, so paths like \usr\bin work everywhere.  Arguments
+         * that start with '/' are switches (/?, /wait, ...): real
+         * cmd.exe never treats a leading slash as a path, so they are
+         * left untouched. */
         {
             int i;
             for (i = 0; i < argc; i++)
-                libcmd_path_norm_sep(argv[i]);
+                if (argv[i][0] != '/')
+                    libcmd_path_norm_sep(argv[i]);
         }
         /* Save/restore standard fds around the builtin call if redirection
          * was requested.  For builtins, the fds have already been dup2'd
@@ -329,7 +435,7 @@ int cmd_dispatch(cmd_context_t *ctx, int argc, char **argv,
                                 libcmd_strcasecmp(argv[0], "pushd") == 0 ||
                                 libcmd_strcasecmp(argv[0], "popd")  == 0);
 
-            if (sigsetjmp(cmd_interrupt_env, 1) == 0) {
+            if (libcmd_sigsetjmp(cmd_interrupt_env, 1) == 0) {
                 cmd_in_builtin = 1;
                 ret = builtin->fn(ctx, argc, argv);
             } else {
@@ -341,7 +447,8 @@ int cmd_dispatch(cmd_context_t *ctx, int argc, char **argv,
                 libcmd_chdir(saved_cwd);
         }
     } else {
-        ret = run_external(ctx, argc, argv, stdin_fd, stdout_fd, stderr_fd);
+        ret = run_external(ctx, argc, argv, stdin_fd, stdout_fd, stderr_fd,
+                           raw_text);
     }
 
     ctx->exit_code = ret;

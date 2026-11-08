@@ -1,3 +1,9 @@
+/* glibcmd.h first on every platform: the portable declarations come
+ * from it even when this guard compiles the file away entirely, and
+ * the translation unit then stays non-empty in ISO C90 (System V cc
+ * rejects empty preprocessed files). */
+#include "glibcmd.h"
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
 /* linenoise.c -- guerrilla line editing library against the idea that a
  * line editing lib needs to be 20,000 lines of C code.
  *
@@ -117,7 +123,6 @@
 #include <sys/select.h>
 #include <unistd.h>
 #include "glinenoise.h"
-#include "glibcmd.h"
 
 /* C89 has no <stdint.h>.  A Unicode code point fits in 21 bits; C89
  * guarantees unsigned long is at least 32 bits wide on every target,
@@ -2199,7 +2204,7 @@ void linenoisePrintKeyCodes(void) {
         if (memcmp(quit,"quit",sizeof(quit)) == 0) break;
 
         printf("'%c' %02x (%d) (type quit to exit)\n",
-            isprint(c) ? c : '?', (int)c, (int)c);
+            isprint((unsigned char)c) ? c : '?', (int)c, (int)c);
         printf("\r"); /* Go left edge manually, we are in raw mode. */
         fflush(stdout);
     }
@@ -2441,3 +2446,6 @@ int linenoiseHistoryLoad(const char *filename) {
     fclose(fp);
     return 0;
 }
+#else
+int llinenoise_c_dummy;
+#endif

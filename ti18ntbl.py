@@ -24,6 +24,29 @@ def encode_msg(msg: str, encode: str) -> str:
     return "".join(result)
 
 
+def literal_byte_len(body: str) -> int:
+    """Count the bytes a string literal body contributes.
+
+    C escapes are resolved to their single byte escape value, so the
+    result is the length of the translated string token.  ISO C90 only
+    requires compilers to accept literals up to 509 characters.
+    """
+    n = 0
+    i = 0
+    while i < len(body):
+        if body[i] == "\\" and i + 1 < len(body):
+            nxt = body[i + 1]
+            if nxt in "01234567" and i + 4 <= len(body) and body[i + 2:i + 4].isdigit():
+                i += 4
+            else:
+                i += 2
+            n += 1
+        else:
+            i += 1
+            n += 1
+    return n
+
+
 def generate_c_code(
     lang: str,
     encode: str,
@@ -44,15 +67,22 @@ def generate_c_code(
     ]
 
     for msg_id, strings in messages:
-        if len(strings) == 1:
-            out_lines.append(f"    table[{msg_id}] = {encode_msg(strings[0], encode)};")
+        enc = [encode_msg(s, encode) for s in strings]
+        total = sum(literal_byte_len(b) for b in enc)
+        join = total > 509
+
+        if join:
+            out_lines.append(f"    table[{msg_id}] = msg_join(")
+            for b in enc:
+                out_lines.append(f"        \"{b}\",")
+            out_lines.append("        (const char *)NULL);")
+        elif len(enc) == 1:
+            out_lines.append(f"    table[{msg_id}] = \"{enc[0]}\";")
         else:
             out_lines.append(f"    table[{msg_id}] =")
-            for i, s in enumerate(strings):
-                if i == len(strings) - 1:
-                    out_lines.append(f"        {encode_msg(s, encode)};")
-                else:
-                    out_lines.append(f"        {encode_msg(s, encode)}")
+            for i, b in enumerate(enc):
+                last = i == len(enc) - 1
+                out_lines.append(f"        \"{b}\"" + (";" if last else ""))
 
     out_lines.extend(
         [
@@ -99,7 +129,11 @@ def main() -> None:
         for line in lines[1:]:
             stripped = line.lstrip()
             if stripped.startswith('"'):
-                strings.append(stripped)
+                # Drop the generator-level delimiters: emission re-quotes.
+                if len(stripped) >= 2 and stripped.endswith('"'):
+                    strings.append(stripped[1:-1])
+                else:
+                    strings.append(stripped)
 
         if strings:
             messages.append((msg_id, strings))

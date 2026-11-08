@@ -7,6 +7,20 @@
  * License: GNU GPLv3
  */
 
+/* POSIX host feature selection.  Must precede the first system header
+ * of every translation unit that includes it: the libc caches the
+ * feature decision when features.h first runs, so the request has to
+ * be in place before <stdio.h> below.  Matches the block in glibcmd.h
+ * (XSI level 2 plus the POSIX.1-2008 additions). */
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 600
+#endif
+#endif
+
 #include <stdio.h>
 #include <stddef.h>
 
@@ -178,11 +192,13 @@ void cmd_endlocal(cmd_context_t *ctx);
 
 /* cvars.c */
 char *cmd_expand_vars(cmd_context_t *ctx, const char *line);
+char *cmd_apply_arg_modifiers(const char *mods, const char *arg);
 int   cmd_print_dynamic_vars(cmd_context_t *ctx, const char *prefix);
 
 /* cdispatch.c */
 int cmd_dispatch(cmd_context_t *ctx, int argc, char **argv,
-                 int stdin_fd, int stdout_fd, int stderr_fd);
+                 int stdin_fd, int stdout_fd, int stderr_fd,
+                 const char *raw_text);
 const cmd_builtin_t *cmd_find_builtin(const char *name);
 
 /* cparser.c */

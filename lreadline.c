@@ -1,3 +1,9 @@
+/* glibcmd.h first on every platform: the portable declarations come
+ * from it even when this guard compiles the file away entirely, and
+ * the translation unit then stays non-empty in ISO C90 (System V cc
+ * rejects empty preprocessed files). */
+#include "glibcmd.h"
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
 /*
  * lreadline.c - line editing with linenoise
  *
@@ -8,7 +14,6 @@
  * License: GNU GPLv3
  */
 
-#include "glibcmd.h"
 #include "glinenoise.h"
 
 #include <errno.h>
@@ -378,3 +383,6 @@ char *libcmd_readline(const char *prompt, char *buf, size_t size)
 
     return buf;
 }
+#else
+int lreadline_c_dummy;
+#endif

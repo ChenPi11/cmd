@@ -1,10 +1,15 @@
+/* glibcmd.h first on every platform: the portable declarations come
+ * from it even when this guard compiles the file away entirely, and
+ * the translation unit then stays non-empty in ISO C90 (System V cc
+ * rejects empty preprocessed files). */
+#include "glibcmd.h"
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
 /*
  * lpath.c - path manipulation utilities
  *
  * License: GNU GPLv3
  */
 
-#include "glibcmd.h"
 
 #include <ctype.h>
 #include <stdlib.h>
@@ -212,3 +217,6 @@ char *libcmd_path_normalize(char *path)
 
     return path;
 }
+#else
+int lpath_c_dummy;
+#endif

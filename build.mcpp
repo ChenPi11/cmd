@@ -1,0 +1,8 @@
+import mcpp;
+
+// The targets are named "cmd.exe" and "COMMAND.COM" so the CMake output
+// names are preserved on every host.  mcpp would otherwise append the
+// host's executable suffix to the target name as well.
+int main() {
+    mcpp::artifact_name("exe", "{name}");
+}

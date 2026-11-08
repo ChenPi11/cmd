@@ -18,8 +18,14 @@
  *   /WAIT  Wait for the launched process to finish.
  *   /D path  Set the working directory for the child.
  *
- * Path arguments are normalised before being forwarded to xdg-open or
- * the terminal emulator:
+ * On Windows, START follows cmd.exe: folders and documents are opened
+ * through ShellExecute (Explorer for directories, the registered
+ * default application for documents), commands are run in a newly
+ * created console window, and with no arguments a new console running
+ * this shell is opened.
+ *
+ * On Unix, path arguments are normalised before being forwarded to
+ * xdg-open or the terminal emulator:
  *   - Bare names (no / or \) that exist in the current directory get
  *     "./" prepended (e.g. "cmd.exe" becomes "./cmd.exe").
  *   - Windows-style backslashes are converted to forward slashes
@@ -36,8 +42,25 @@
 #include <string.h>
 
 /* ------------------------------------------------------------------ */
-/*  Terminal emulator helpers                                         */
+/*  Startup helpers (platform split)                                   */
 /* ------------------------------------------------------------------ */
+
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+
+/*
+ * Windows: no terminal emulator is involved.  A STARTed command runs
+ * in a newly opened console window (the way cmd.exe's START works);
+ * with no command a plain new console is opened.
+ * Returns the child PID on success, -1 on failure.
+ */
+static int start_in_terminal(char *const argv[], int show_cmd,
+                             int nice_level)
+{
+    return libcmd_exec_console_ex(argv, libcmd_get_environ(),
+                                  show_cmd, nice_level);
+}
+
+#else
 
 /* Candidates tried in order; the first one found in PATH wins. */
 static const char *const term_candidates[] = {
@@ -46,17 +69,6 @@ static const char *const term_candidates[] = {
     "dtterm", "rxvt",
     NULL
 };
-
-/* Return 1 if a graphical display (X11 or Wayland) is available. */
-static int has_display(void)
-{
-    const char *d;
-    d = libcmd_getenv("DISPLAY");
-    if (d && d[0]) return 1;
-    d = libcmd_getenv("WAYLAND_DISPLAY");
-    if (d && d[0]) return 1;
-    return 0;
-}
 
 /*
  * Find a terminal emulator.  Writes the resolved path into 'buf'
@@ -92,7 +104,8 @@ static char *posix_path_dup(const char *arg);
  * If argv is NULL or argv[0] is NULL, the terminal is opened without
  * any command.
  * Returns child PID on success, -1 on failure. */
-static int start_in_terminal(char *const argv[])
+static int start_in_terminal(char *const argv[], int show_cmd,
+                             int nice_level)
 {
     char term_path[CMD_MAX_PATH];
     const char *term_name;
@@ -100,7 +113,9 @@ static int start_in_terminal(char *const argv[])
     char **nargv;
     int pid;
 
-    if (!has_display())
+    (void)show_cmd;   /* xdm terminals cannot request a state safely */
+
+    if (!libcmd_has_display())
         return -1;
     if (find_terminal(term_path, sizeof(term_path)) < 0)
         return -1;
@@ -127,7 +142,7 @@ static int start_in_terminal(char *const argv[])
     nargv[i] = NULL;
 
     pid = libcmd_exec_async(term_path, nargv, libcmd_get_environ(),
-                            -1, -1, -1, 0);
+                            -1, -1, -1, nice_level);
 
     for (j = 0; j < n; j++)
         free(nargv[2 + j]);
@@ -163,6 +178,8 @@ static char *posix_path_dup(const char *arg)
     return libcmd_strdup(buf);
 }
 
+#endif
+
 /* ------------------------------------------------------------------ */
 /*  builtin_start                                                      */
 /* ------------------------------------------------------------------ */
@@ -171,7 +188,9 @@ int builtin_start(cmd_context_t *ctx, int argc, char **argv)
 {
     int opt_wait     = 0;
     int opt_b        = 0;
+    int opt_show     = LIBCMD_SHOW_NORMAL;
     int nice_level   = 0;
+    int found        = 0;
     int argi         = 1;
     char exec_path[CMD_MAX_PATH];
     const char *path_env;
@@ -217,12 +236,14 @@ int builtin_start(cmd_context_t *ctx, int argc, char **argv)
             { nice_level = -10; argi++; }
         else if (libcmd_strcasecmp(sw, "/REALTIME") == 0)
             { nice_level = -20; argi++; }
-        else if (libcmd_strcasecmp(sw, "/MIN") == 0 ||
-                 libcmd_strcasecmp(sw, "/MAX") == 0 ||
-                 libcmd_strcasecmp(sw, "/I") == 0 ||
+        else if (libcmd_strcasecmp(sw, "/MIN") == 0)
+            { opt_show = LIBCMD_SHOW_MINIMIZED; argi++; }
+        else if (libcmd_strcasecmp(sw, "/MAX") == 0)
+            { opt_show = LIBCMD_SHOW_MAXIMIZED; argi++; }
+        else if (libcmd_strcasecmp(sw, "/I") == 0 ||
                  libcmd_strcasecmp(sw, "/SHARED") == 0 ||
                  libcmd_strcasecmp(sw, "/SEPARATE") == 0)
-            /* Accepted for compatibility; no-op on Unix. */
+            /* Accepted for compatibility; no-op. */
             { argi++; }
         else
             break;
@@ -251,7 +272,7 @@ int builtin_start(cmd_context_t *ctx, int argc, char **argv)
             return 0;
         }
 
-        if (!has_display()) {
+        if (!libcmd_has_display()) {
             if (saved_cwd[0]) libcmd_chdir(saved_cwd);
             fputs(cmd_gettext(MSG_ERR_START_NO_DISPLAY), stderr);
             return 1;
@@ -262,7 +283,7 @@ int builtin_start(cmd_context_t *ctx, int argc, char **argv)
         cmd_argv[1] = NULL;
 
         {
-            int pid = start_in_terminal(cmd_argv);
+            int pid = start_in_terminal(cmd_argv, opt_show, nice_level);
             if (pid > 0) {
                 if (opt_wait) {
                     libcmd_wait_pid(pid, &exit_info);
@@ -280,74 +301,45 @@ int builtin_start(cmd_context_t *ctx, int argc, char **argv)
     /* ------------------------------------------------------------------
      * Case 2: argument is an existing file or directory.
      *   Executable regular files are treated as command (Case 3).
-     *   Directories and non-executable files are opened with xdg-open.
+     *   Directories and non-executable files are opened with the
+     *   desktop default application (xdg-open / ShellExecute).
      * ------------------------------------------------------------------ */
     {
         libcmd_stat_t st;
+        int i;
+
         if (libcmd_stat(argv[argi], &st, 1) == 0) {
             /* Executable regular file: fall through to Case 3 */
-            if (st.is_regular &&
-                (st.mode & (S_IXUSR | S_IXGRP | S_IXOTH)))
+            if (libcmd_is_executable_file(argv[argi]))
                 goto run_command;
 
-            /* Directory or non-executable file: use xdg-open */
-            {
-                char xdg_path[CMD_MAX_PATH];
-                int nargs, i, pid;
-                char **xdg_argv;
+            /* Directory or non-executable file: open it with the
+             * platform's way of presenting filesystem objects.  Each
+             * argument is opened on its own; /WAIT waits on the first
+             * one (the launcher's process). */
+            if (!libcmd_has_display()) {
+                if (saved_cwd[0]) libcmd_chdir(saved_cwd);
+                fputs(cmd_gettext(MSG_ERR_START_NO_DISPLAY), stderr);
+                return 1;
+            }
 
-                if (!has_display()) {
-                    if (saved_cwd[0]) libcmd_chdir(saved_cwd);
-                    fputs(cmd_gettext(MSG_ERR_START_NO_DISPLAY), stderr);
-                    return 1;
-                }
-
-                if (libcmd_find_exec("xdg-open",
-                                     libcmd_getenv("PATH"),
-                                     xdg_path, sizeof(xdg_path)) < 0) {
-                    if (saved_cwd[0]) libcmd_chdir(saved_cwd);
-                    fprintf(stderr, "START: xdg-open not found\n");
-                    return 1;
-                }
-
-                for (nargs = 0; argv[argi + nargs]; nargs++);
-
-                xdg_argv = (char **)malloc((size_t)(nargs + 2) *
-                                           sizeof(char *));
-                if (xdg_argv == NULL) {
-                    if (saved_cwd[0]) libcmd_chdir(saved_cwd);
-                    return 1;
-                }
-
-                xdg_argv[0] = (char *)"xdg-open";
-                for (i = 0; i < nargs; i++)
-                    xdg_argv[1 + i] = posix_path_dup(argv[argi + i]);
-                xdg_argv[1 + nargs] = NULL;
-
-                pid = libcmd_exec_async(xdg_path, xdg_argv,
-                                        libcmd_get_environ(),
-                                        -1, -1, -1, nice_level);
-
-                for (i = 0; i < nargs; i++)
-                    free(xdg_argv[1 + i]);
-                free(xdg_argv);
-
-                if (pid < 0) {
+            for (i = argi; argv[i]; i++) {
+                if (libcmd_shell_open_n(argv[i], opt_wait && i == argi,
+                                        &exit_info, opt_show) < 0) {
                     if (saved_cwd[0]) libcmd_chdir(saved_cwd);
                     fprintf(stderr, cmd_gettext(MSG_ERR_START_FAILED),
-                            argv[argi]);
+                            argv[i]);
                     return 1;
                 }
-
-                if (opt_wait) {
-                    libcmd_wait_pid(pid, &exit_info);
-                    if (saved_cwd[0]) libcmd_chdir(saved_cwd);
-                    return exit_info.exit_code;
-                }
-
-                if (saved_cwd[0]) libcmd_chdir(saved_cwd);
-                return 0;
             }
+
+            if (opt_wait) {
+                if (saved_cwd[0]) libcmd_chdir(saved_cwd);
+                return exit_info.exit_code;
+            }
+
+            if (saved_cwd[0]) libcmd_chdir(saved_cwd);
+            return 0;
         }
     }
 
@@ -356,11 +348,46 @@ int builtin_start(cmd_context_t *ctx, int argc, char **argv)
      * ------------------------------------------------------------------ */
 run_command:
     path_env = libcmd_getenv("PATH");
-    if (libcmd_find_exec(argv[argi], path_env,
-                         exec_path, sizeof(exec_path)) < 0) {
-        if (saved_cwd[0]) libcmd_chdir(saved_cwd);
-        fprintf(stderr, cmd_gettext(MSG_ERR_START_NOT_FOUND), argv[argi]);
-        return 1;
+    /* cmd.exe's START also runs internal commands ("start dir",
+     * "start echo hi"); those are not on disk, so only require the
+     * PATH lookup for names that are not builtins. */
+    {
+        if (cmd_find_builtin(argv[argi]) != NULL)
+            found = 2;              /* internal command: START runs it */
+        else
+            found = (libcmd_find_exec(argv[argi], path_env,
+                                      exec_path,
+                                      sizeof(exec_path)) >= 0) ? 1 : 0;
+
+        /* /B runs directly in this console: a missing program stays a
+         * console error there (real cmd does the same for /B). */
+        if (opt_b && found != 1) {
+            if (saved_cwd[0]) libcmd_chdir(saved_cwd);
+            fprintf(stderr, cmd_gettext(MSG_ERR_START_NOT_FOUND),
+                    argv[argi]);
+            return 1;
+        }
+        if (!opt_b && found == 0) {
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+            /* cmd.exe's START hands unresolved names to the shell and
+             * lets Windows show its standard "Windows cannot find"
+             * dialog.  ShellExecute reports failure only after the
+             * user dismisses it. */
+            {
+                int sret;
+                sret = libcmd_shell_open_n(argv[argi], opt_wait, &exit_info,
+                                           opt_show);
+                if (saved_cwd[0]) libcmd_chdir(saved_cwd);
+                return (sret == 0) ? (opt_wait ? exit_info.exit_code : 0)
+                                   : 1;
+            }
+#else
+            if (saved_cwd[0]) libcmd_chdir(saved_cwd);
+            fprintf(stderr, cmd_gettext(MSG_ERR_START_NOT_FOUND),
+                    argv[argi]);
+            return 1;
+#endif
+        }
     }
 
     if (opt_b) {
@@ -394,15 +421,38 @@ run_command:
 
     /* Normal case: run in a new terminal window */
     {
+        char **pargv = NULL;
         int pid;
+        int n = 0, j;
 
-        if (!has_display()) {
+        if (!libcmd_has_display()) {
             if (saved_cwd[0]) libcmd_chdir(saved_cwd);
             fputs(cmd_gettext(MSG_ERR_START_NO_DISPLAY), stderr);
             return 1;
         }
 
-        pid = start_in_terminal(argv + argi);
+        /* A disk program is handed over as its resolved path, so
+         * exec_console spawns it directly (like real cmd.exe's START):
+         * the window state and priority then apply to the program
+         * itself, and GUI programs do not drag a host cmd console
+         * along.  Builtins keep their bare name and go through the
+         * COMSPEC wrapper. */
+        if (found == 1 && exec_path[0] != '\0') {
+            for (n = 0; argv[argi + n] != NULL; n++);
+            pargv = (char **)malloc((size_t)(n + 1) * sizeof(char *));
+            if (pargv != NULL) {
+                pargv[0] = exec_path;
+                for (j = 1; j < n; j++)
+                    pargv[j] = argv[argi + j];
+                pargv[n] = NULL;
+            }
+        }
+
+        if (pargv != NULL)
+            pid = start_in_terminal(pargv, opt_show, nice_level);
+        else
+            pid = start_in_terminal(argv + argi, opt_show, nice_level);
+        free(pargv);
         if (pid < 0) {
             if (saved_cwd[0]) libcmd_chdir(saved_cwd);
             fprintf(stderr, cmd_gettext(MSG_ERR_START_FAILED), argv[argi]);

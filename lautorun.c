@@ -1,3 +1,9 @@
+/* glibcmd.h first on every platform: the portable declarations come
+ * from it even when this guard compiles the file away entirely, and
+ * the translation unit then stays non-empty in ISO C90 (System V cc
+ * rejects empty preprocessed files). */
+#include "glibcmd.h"
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
 /*
  * lautorun.c - execute AutoRun scripts
  *
@@ -8,7 +14,6 @@
  * License: GNU GPLv3
  */
 
-#include "glibcmd.h"
 
 #include <dirent.h>
 #include <stdio.h>
@@ -118,3 +123,6 @@ cleanup:
     closedir(d);
     return ret;
 }
+#else
+int lautorun_c_dummy;
+#endif

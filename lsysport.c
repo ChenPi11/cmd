@@ -1,3 +1,9 @@
+/* glibcmd.h first on every platform: the portable declarations come
+ * from it even when this guard compiles the file away entirely, and
+ * the translation unit then stays non-empty in ISO C90 (System V cc
+ * rejects empty preprocessed files). */
+#include "glibcmd.h"
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
 /*
  * lsysport.c - system portability shims
  *
@@ -10,20 +16,25 @@
  *   libcmd_fnmatch            fnmatch(3)                  vs  built-in matcher
  *   libcmd_set_system_time    settimeofday(2)             vs  stime(2)
  *   libcmd_set_process_priority setpriority(2)           vs  nice(2)
- *   libcmd_open_memstream     open_memstream(3) (GNU)     vs  tmpfile-backed
+ *   libcmd_open_memstream     open_memstream(3)           vs  tmpfile-backed
  *   libcmd_memstream_close
+ *
+ * open_memstream(3) is missing from many non-glibc systems as well
+ * (FreeBSD, macOS, Haiku, ...), so its fallback is the default and the
+ * native call is only used when LIBCMD_HAVE_OPEN_MEMSTREAM is defined.
  *
  * License: GNU GPLv3
  */
 
-#include "glibcmd.h"
-
+#if defined(LIBCMD_SYSV)
 #include <errno.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/utsname.h>
 
 #ifndef LIBCMD_SYSV
 #include <fnmatch.h>
@@ -176,16 +187,19 @@ int libcmd_fnmatch(const char *pattern, const char *string)
 int stime(const time_t *);
 #endif
 
+/* settimeofday(2) is BSD-borne, not XSI, and glibc hides it under a
+ * strict feature profile: the POSIX-C level way to set the system
+ * clock to a wall-clock time is clock_settime(CLOCK_REALTIME). */
 int libcmd_set_system_time(time_t t)
 {
 #if defined(LIBCMD_SYSV)
     return stime(&t);
 #else
-    struct timeval tv;
+    struct timespec ts;
 
-    tv.tv_sec  = t;
-    tv.tv_usec = 0;
-    return settimeofday(&tv, NULL);
+    ts.tv_sec  = t;
+    ts.tv_nsec = 0;
+    return clock_settime(CLOCK_REALTIME, &ts);
 #endif
 }
 
@@ -211,7 +225,18 @@ int libcmd_set_process_priority(int nice_level)
  * Memory streams
  * ---------------------------------------------------------------------- */
 
-#if defined(LIBCMD_SYSV)
+/*
+ * open_memstream(3) is POSIX.1-2008, but many otherwise POSIX systems
+ * (FreeBSD, macOS, Haiku, ...) never implemented it, so calling it
+ * unconditionally breaks their builds.  The tmpfile-backed fallback is
+ * therefore the default; build with -DLIBCMD_HAVE_OPEN_MEMSTREAM to
+ * select the native function where the libc is known to provide it.
+ */
+#if !defined(LIBCMD_HAVE_OPEN_MEMSTREAM) && defined(__GLIBC__)
+#define LIBCMD_HAVE_OPEN_MEMSTREAM 1
+#endif
+
+#if !defined(LIBCMD_HAVE_OPEN_MEMSTREAM)
 
 static FILE *ms_stream;     /* active memstream (single-stream use) */
 static char **ms_ptr;
@@ -273,6 +298,8 @@ int libcmd_memstream_close(FILE *stream)
 
 #else
 
+/* Native open_memstream(3); declared thanks to the _POSIX_C_SOURCE
+ * level requested in glibcmd.h. */
 FILE *libcmd_open_memstream(char **ptr, size_t *sizeloc)
 {
     if (ptr)
@@ -289,4 +316,108 @@ int libcmd_memstream_close(FILE *stream)
     return fclose(stream);
 }
 
+#endif
+
+/* -------------------------------------------------------------------------
+ * uname
+ * ---------------------------------------------------------------------- */
+
+static void lsysport_copy_field(char *dst, size_t dst_size, const char *src)
+{
+    /* -Wstringop-truncation is a GCC-only warning group: clang defines
+     * __GNUC__ too and would report the pragma as an unknown option,
+     * so restrict the suppression to real GCC. */
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif
+    strncpy(dst, src, dst_size - 1);
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+}
+
+int libcmd_uname(libcmd_utsname_t *buf)
+{
+    struct utsname u;
+
+    memset(buf, 0, sizeof(*buf));
+    memset(&u, 0, sizeof(u));
+    /* Some unix may return 1 on success. */
+    (void)uname(&u);
+
+    lsysport_copy_field(buf->sysname,  sizeof(buf->sysname),  u.sysname);
+    lsysport_copy_field(buf->nodename, sizeof(buf->nodename), u.nodename);
+    lsysport_copy_field(buf->release,  sizeof(buf->release),  u.release);
+    lsysport_copy_field(buf->version,  sizeof(buf->version),  u.version);
+    lsysport_copy_field(buf->machine,  sizeof(buf->machine),  u.machine);
+    return 0;
+}
+
+/* -------------------------------------------------------------------------
+ * Signals
+ * ---------------------------------------------------------------------- */
+
+int libcmd_sigaction(int sig,
+                     const libcmd_sigaction_t *act,
+                     libcmd_sigaction_t *oldact)
+{
+    struct sigaction sa, old_sa;
+
+    if (sig != LIBCMD_SIGINT && sig != LIBCMD_SIGTSTP && sig != LIBCMD_SIGPIPE)
+        return -1;
+
+    /* Empty mask, no SA_RESTART: interrupted blocking syscalls return
+     * EINTR, which the interpreter relies on. */
+    memset(&sa, 0, sizeof(sa));
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    if (act != NULL)
+        sa.sa_handler = act->handler;
+
+    if (sigaction(sig, act == NULL ? NULL : &sa,
+                  oldact == NULL ? NULL : &old_sa) < 0)
+        return -1;
+    if (oldact != NULL)
+        oldact->handler = old_sa.sa_handler;
+    return 0;
+}
+
+void libcmd_reset_child_signals(void)
+{
+    signal(LIBCMD_SIGINT, SIG_DFL);
+    signal(LIBCMD_SIGTSTP, SIG_DFL);
+    signal(LIBCMD_SIGPIPE, SIG_DFL);
+}
+
+/* -------------------------------------------------------------------------
+ * Graphical session detection
+ * ---------------------------------------------------------------------- */
+
+int libcmd_has_display(void)
+{
+    const char *d;
+
+    d = libcmd_getenv("DISPLAY");
+    if (d != NULL && d[0] != '\0')
+        return 1;
+    d = libcmd_getenv("WAYLAND_DISPLAY");
+    if (d != NULL && d[0] != '\0')
+        return 1;
+    return 0;
+}
+
+/* -------------------------------------------------------------------------
+ * Raw command line
+ * ---------------------------------------------------------------------- */
+
+const char *libcmd_get_raw_cmdline(void)
+{
+    /* POSIX shells pass their arguments through execve argv[] only;
+     * there is no single raw command line to read.  cmain falls back
+     * to joining argv[]. */
+    return NULL;
+}
+#else
+int lsysport_c_dummy;
 #endif

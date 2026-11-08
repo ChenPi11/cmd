@@ -1,10 +1,15 @@
+/* glibcmd.h first on every platform: the portable declarations come
+ * from it even when this guard compiles the file away entirely, and
+ * the translation unit then stays non-empty in ISO C90 (System V cc
+ * rejects empty preprocessed files). */
+#include "glibcmd.h"
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(_MSC_VER)
 /*
  * lio.c - low-level I/O operations
  *
  * License: GNU GPLv3
  */
 
-#include "glibcmd.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -81,3 +86,6 @@ FILE *libcmd_fdopen(int fd, const char *mode)
 {
     return fdopen(fd, mode);
 }
+#else
+int lio_c_dummy;
+#endif
