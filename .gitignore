@@ -1,6 +1,9 @@
 build/
 .gradle/
 .xmake/
+target/
+.mcpp/
+compile_commands.json
 .marscode/
 cmd-*
 *.o
