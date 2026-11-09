@@ -12,9 +12,9 @@
 
 诞生于 GNU/Linux，运行在**所有类 UNIX 系统**上
 
-遗憾的是，它不支持 Windows，也无法占据 Windows 市场。
+诞生于GNU/Linux，可在**所有类UNIX系统**和Windows上运行。
 
-**仅需LIBC和POSIX API。**
+**仅需LIBC和POSIX API/Win32 API。**
 
 **[README: American English](README.md)** |
 **[README: 简体中文](README.zh_CN.md)** |

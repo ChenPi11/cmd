@@ -8,11 +8,17 @@
 
 **Windows `cmd.exe` 命令解释器在 Unix 上的忠实重实现。**
 
-诞生于 GNU/Linux，可在**所有的类 Unix 系统**上运行。
-
+```text
+从 GNU/Linux 里诞生，告别了温室的温暖气温。
+新生的一个外壳兼容一切，睁开眼睛便见证史实。
+游戏老师解说使用AI，就算彼此都不太兼容。
+GNU 一双脚太快长大，走得出过去避免再失败。
+我要作优质杂交代，兼容的苦恼给我解开。
+我会是精英杂交代，我努力翻江覆雨倒海。
 很遗憾，它不支持 Windows 平台，无法占领 Windows 市场。
+```
 
-**仅依赖 libc 与 POSIX API。**
+**仅依赖 libc 与 POSIX API/Win32 API。**
 
 **[README: American English](README.md)** |
 **[README: 简体中文](README.zh_CN.md)** |
