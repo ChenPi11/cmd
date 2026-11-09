@@ -10,11 +10,9 @@
 
 **A faithful reimplementation of the Windows `cmd.exe` command interpreter for Unix.**
 
-Born on GNU/Linux, runs on **EVERY UNIX-LIKE SYSTEMS**
+Born on GNU/Linux, runs on **EVERY UNIX-LIKE SYSTEMS** and Windows.
 
-Unfortunately, it does not support Windows and cannot capture the Windows market.
-
-**ONLY LIBC and POSIX API required.**
+**ONLY LIBC and POSIX API/Win32 API required.**
 
 **[README: American English](README.md)** |
 **[README: 简体中文](README.zh_CN.md)** |
