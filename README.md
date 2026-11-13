@@ -277,4 +277,5 @@ GNU General Public License **version 3 or later** — see [LICENSE](LICENSE).
 
 ## Contributing
 
-See [CONTRIBUTING](CONTRIBUTING).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for build, coding, and portability
+rules, and the [Code of Conduct](CODE_OF_CONDUCT.md) for community standards.

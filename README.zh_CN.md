@@ -280,4 +280,5 @@ GNU 通用公共许可证 **第 3 版或更高版本** —— 参见 [LICENSE](L
 
 ## 参与贡献
 
-参见 [CONTRIBUTING](CONTRIBUTING)。
+参见 [CONTRIBUTING.zh_CN.md](CONTRIBUTING.zh_CN.md) 了解构建、编码与可移植性
+规则，并遵守[行为准则](CODE_OF_CONDUCT.zh_CN.md)。

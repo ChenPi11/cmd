@@ -293,4 +293,4 @@ GNU 通用公共许可证 **版本3或更高版本** — 参见 [LICENSE]（LICE
 
 ## 贡献
 
-参见[贡献](CONTRIBUTING)。
+参见[贡献](CONTRIBUTING.zh_CN.md)，并遵守[行为准则](CODE_OF_CONDUCT.zh_CN.md)。
