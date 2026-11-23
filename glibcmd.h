@@ -435,7 +435,7 @@ int libcmd_get_entry_owner(const char *path, char *name_buf, size_t name_size);
 
 /*
  * libcmd_is_executable_file - return 1 if path names a regular file the
- * platform runs directly: on Unix a file with an execute bit set, on
+ * platform runs directly: on Unix a file this process may execute, on
  * Windows a file with one of the executable extensions .com, .exe,
  * .bat or .cmd (case-insensitive).  Returns 0 otherwise (errors too).
  */

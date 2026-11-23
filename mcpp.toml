@@ -43,11 +43,7 @@ runner = { cmd = ["dirun", "--profile", "{pkg:puredarwin-disk-image}/dirun.toml"
 
 # musl here has neither sysctl nor _NSGetExecutablePath.
 [target.'cfg(c-abi = "musl")'.build]
-defines = ["CMD_LIBC_MUSL=1"]
-
-# DJGPP has no setpriority(): the System V shims.
-[target.i586-dos-djgpp.build]
-defines = ["LIBCMD_SYSV=1"]
+defines = ["LIBCMD_MUSL=1"]
 
 # The browser build of wasm32-emscripten.
 [profile.web]

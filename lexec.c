@@ -21,6 +21,9 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#if defined(_POSIX_SPAWN) && _POSIX_SPAWN > 0
+#include <spawn.h>
+#endif
 
 /* -------------------------------------------------------------------------
  * Internal helpers
@@ -78,20 +81,25 @@ static void child_redirect_to_null(int target)
  * starts it instead.  It places the three streams; a program START
  * detaches forms a group of its own, and a priority START asks for is not
  * applied. */
-#include <spawn.h>
-
 extern char **environ;
 
 static int spawn_program(const char *path,
                          char *const argv[],
                          char *const envp[],
-                         const int fds[3],
+                         int stdin_fd,
+                         int stdout_fd,
+                         int stderr_fd,
                          int detached,
                          pid_t *pid)
 {
     posix_spawn_file_actions_t actions;
     posix_spawnattr_t attr;
+    int fds[3];
     int i, r;
+
+    fds[0] = stdin_fd;
+    fds[1] = stdout_fd;
+    fds[2] = stderr_fd;
 
     posix_spawn_file_actions_init(&actions);
     posix_spawnattr_init(&attr);
@@ -117,18 +125,6 @@ static int spawn_program(const char *path,
     return 0;
 }
 #endif
-
-/* Whether NAME is a file this process may start.  access(X_OK) asks the
- * system that decides: the owner's execute bit is the wrong question for
- * another user's file, and a system that keeps no execute permission
- * reports none in stat while access answers yes. */
-static int is_runnable(const char *name)
-{
-    struct stat st;
-
-    return stat(name, &st) == 0 && S_ISREG(st.st_mode) &&
-           access(name, X_OK) == 0;
-}
 
 /* -------------------------------------------------------------------------
  * Raw fork / exit (used by cparser.c to run pipelines concurrently)
@@ -162,15 +158,10 @@ int libcmd_exec_sync(const char *path,
 
     pid = fork();
 #if defined(_POSIX_SPAWN) && _POSIX_SPAWN > 0
-    if (pid < 0 && errno == ENOSYS) {
-        int fds[3];
-
-        fds[0] = stdin_fd;
-        fds[1] = stdout_fd;
-        fds[2] = stderr_fd;
-        if (spawn_program(path, argv, envp, fds, 0, &pid) < 0)
-            return -1;
-    }
+    if (pid < 0 && errno == ENOSYS &&
+        spawn_program(path, argv, envp, stdin_fd, stdout_fd, stderr_fd,
+                      0, &pid) < 0)
+        return -1;
 #endif
     if (pid < 0)
         return -1;
@@ -209,15 +200,10 @@ int libcmd_exec_async(const char *path,
 
     pid = fork();
 #if defined(_POSIX_SPAWN) && _POSIX_SPAWN > 0
-    if (pid < 0 && errno == ENOSYS) {
-        int fds[3];
-
-        fds[0] = stdin_fd;
-        fds[1] = stdout_fd;
-        fds[2] = stderr_fd;
-        if (spawn_program(path, argv, envp, fds, 1, &pid) < 0)
-            return -1;
-    }
+    if (pid < 0 && errno == ENOSYS &&
+        spawn_program(path, argv, envp, stdin_fd, stdout_fd, stderr_fd,
+                      1, &pid) < 0)
+        return -1;
 #endif
     if (pid < 0)
         return -1;
@@ -269,7 +255,7 @@ int libcmd_find_exec(const char *name,
 
     /* Absolute or relative path with directory separator */
     if (strchr(name, '/') != NULL) {
-        if (is_runnable(name)) {
+        if (libcmd_is_executable_file(name)) {
             return libcmd_sprintf_s(out, out_size, "%s", name) >= 0 ? 0 : -1;
         }
         return -1;
@@ -280,7 +266,7 @@ int libcmd_find_exec(const char *name,
 
     /* Windows cmd semantics: the current directory is searched before
      * PATH, so "build.sh" runs without a "./" prefix after cd. */
-    if (is_runnable(name)) {
+    if (libcmd_is_executable_file(name)) {
         return libcmd_sprintf_s(out, out_size, "./%s", name) >= 0 ? 0 : -1;
     }
 
@@ -296,7 +282,7 @@ int libcmd_find_exec(const char *name,
                 candidate[end - start] = '/';
                 strcpy(candidate + (end - start) + 1, name);
 
-                if (is_runnable(candidate)) {
+                if (libcmd_is_executable_file(candidate)) {
                     return libcmd_sprintf_s(out, out_size,
                                             "%s", candidate) >= 0 ? 0 : -1;
                 }

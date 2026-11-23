@@ -26,9 +26,7 @@
  * License: GNU GPLv3
  */
 
-#if defined(LIBCMD_SYSV)
 #include <errno.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -219,7 +217,7 @@ int libcmd_set_process_priority(int nice_level)
 {
     if (nice_level == 0)
         return 0;
-#if defined(LIBCMD_SYSV)
+#if defined(LIBCMD_SYSV) || !defined(PRIO_PROCESS)
     errno = 0;
     if (nice(nice_level) == -1 && errno != 0)
         return -1;
