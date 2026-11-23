@@ -675,7 +675,11 @@ int cmd_run_file(cmd_context_t *ctx, const char *path, int argc, char **argv)
         return 1;
     }
 
-    f = fopen(path, "r");
+    /* Binary mode: CALL saves its return point with ftell() and restores it
+     * with fseek().  In text mode a Windows C runtime miscounts ftell() on a
+     * file whose lines end in LF alone, and EXIT /B then returns to the CALL
+     * line itself.  The line readers strip the CR of CR LF themselves. */
+    f = fopen(path, "rb");
     if (f == NULL)
     {
         fprintf(stderr, cmd_gettext(MSG_ERR_OPEN_BATCH), path, libcmd_strerror());

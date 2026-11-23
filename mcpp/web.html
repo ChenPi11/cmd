@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}}</title>
+<meta name="description" content="cmd: the Windows cmd.exe command interpreter, faithfully reimplemented for Linux, Windows, macOS, the BSDs, Android, the Web, UEFI, MS-DOS and more. Try it in the browser.">
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #fff; --line: #d9dde3; --text: #1f2328; --dim: #656d76; --soft: #ddf4ff;
+    --hover: #f3f4f6; --term: #0d1117; --term-text: #c9d1d9; --accent: #0969da; --err: #f85149; --ok: #1a7f37;
+    --l2: #1a7f37; --l1: #9a6700; --l0: #656d76;
+    --dark-btn: #24292f; --dark-btn-hover: #32383f; --shadow: 0 1px 2px rgba(31,35,40,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0d1117; --panel: #161b22; --line: #30363d; --text: #e6edf3; --dim: #8b949e; --soft: #0c2d6b;
+            --hover: #1c2128; --term: #010409; --accent: #4493f8; --ok: #3fb950; --l2: #238636; --l1: #9e6a03;
+            --dark-btn: #f0f3f6; --dark-btn-hover: #ffffff; --shadow: 0 1px 2px rgba(0,0,0,.4); }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.55 system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+  main { max-width: 1120px; margin: 0 auto; padding: 2rem 1.25rem 0; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .mono, code, textarea, input, .cmdline, .target { font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  code { font-size: 12.5px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 0 .3rem; }
+  select, button { font: inherit; font-size: 13px; color: var(--text); background: var(--panel);
+                   border: 1px solid var(--line); border-radius: 6px; padding: .25rem .6rem; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  svg { flex: none; }
+
+  /* header */
+  header { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 1rem; }
+  header .title { flex: 1; min-width: 18rem; }
+  h1 { margin: 0; font-size: 1.9rem; letter-spacing: -.01em; }
+  h1 span { color: var(--dim); font-weight: 400; font-size: 1.1rem; margin-left: .4rem; }
+  .lead { margin: .3rem 0 .5rem; font-size: 1.05rem; max-width: 52rem; }
+  .facts { margin: 0; color: var(--dim); font-size: 13px; }
+  .facts b { color: var(--text); font-weight: 600; }
+  nav { display: flex; gap: .6rem; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; height: 2.25rem; min-width: 6.5rem;
+         padding: 0 1rem; border-radius: 8px; font-size: 14px; font-weight: 600; letter-spacing: .01em;
+         border: 1px solid transparent; box-shadow: var(--shadow); cursor: pointer;
+         transition: background-color .15s, border-color .15s, transform .05s; }
+  .btn:hover { text-decoration: none; }
+  .btn:active { transform: translateY(1px); }
+  .btn.dark { background: var(--dark-btn); color: var(--panel); }
+  .btn.dark:hover { background: var(--dark-btn-hover); }
+  .btn.light { background: var(--panel); color: var(--text); border-color: var(--line); }
+  .btn.light:hover { background: var(--hover); border-color: var(--dim); }
+
+  /* playground */
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .9rem; margin: 1.5rem 0 .6rem; font-size: 13px; color: var(--dim); }
+  .grow { flex: 1; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; padding: .25rem 1rem; font-weight: 600; }
+  .panes { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  section.pane { display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line);
+                 border-radius: 8px; overflow: hidden; height: 26rem; }
+  .bar { display: flex; align-items: center; gap: .5rem; padding: .4rem .7rem; border-bottom: 1px solid var(--line);
+         font-size: 12px; color: var(--dim); background: var(--panel); }
+  .bar button { padding: .1rem .5rem; font-size: 12px; }
+  textarea { flex: 1; resize: none; border: 0; outline: 0; padding: .7rem; tab-size: 4; background: var(--panel); color: var(--text); }
+  section.pane.term { background: var(--term); color: var(--term-text); cursor: text; }
+  #out { flex: 1; margin: 0; padding: .7rem; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+  #out .cmd { color: #7ee787; }
+  #out .err { color: var(--err); }
+  #out .note { color: #8b949e; }
+  .prompt { display: flex; align-items: center; gap: .4rem; padding: .45rem .7rem; border-top: 1px solid #30363d; }
+  .prompt input { flex: 1; background: transparent; border: 0; outline: 0; color: var(--term-text); }
+  .limits { margin: .5rem 0 0; color: var(--dim); font-size: 12.5px; }
+
+  /* cards */
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1.5rem; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: .9rem 1rem; }
+  .card h2 { margin: 0 0 .3rem; font-size: 15px; }
+  .card p { margin: 0; color: var(--dim); font-size: 13.5px; }
+
+  /* build picker */
+  h2.section { margin: 2.2rem 0 .3rem; font-size: 1.2rem; }
+  .sub { margin: 0 0 .9rem; color: var(--dim); font-size: 13.5px; }
+  .lv { display: inline-block; min-width: 2.2rem; text-align: center; border-radius: 4px; padding: 0 .35rem;
+        font: 600 11.5px/1.7 ui-monospace, Menlo, Consolas, monospace; color: #fff; }
+  .lv.L2 { background: var(--l2); } .lv.L1 { background: var(--l1); } .lv.L0, .lv.B { background: var(--l0); }
+  .picker { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
+  .prow { display: grid; grid-template-columns: 5.5rem 1fr; align-items: start; gap: .8rem; padding: .7rem 1rem; }
+  .prow + .prow { border-top: 1px dashed var(--line); }
+  .plabel { padding-top: .35rem; font-size: 12px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: .05em; }
+  .opts { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .opt { position: relative; height: 2rem; padding: 0 .85rem; border-radius: 999px; font-size: 13.5px; font-weight: 500;
+         background: var(--panel); border: 1px solid var(--line); color: var(--text);
+         transition: background-color .15s, border-color .15s, color .15s; }
+  .opt:hover { background: var(--hover); border-color: var(--dim); }
+  .opt.on { background: var(--soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .opt .dot { display: inline-block; width: .45rem; height: .45rem; border-radius: 50%; margin-left: .4rem; vertical-align: middle; }
+  .dot.L2 { background: var(--l2); } .dot.L1 { background: var(--l1); } .dot.B { background: var(--l0); }
+  .result { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; padding: .8rem 1rem; border-top: 1px solid var(--line); background: var(--bg); }
+  .target { font-size: 15px; font-weight: 700; }
+  .why { color: var(--dim); font-size: 13px; }
+  .build { display: flex; align-items: center; gap: .8rem; padding: .8rem 1rem; background: var(--term); color: var(--term-text); }
+  .cmdline { flex: 1; white-space: pre-wrap; word-break: break-all; line-height: 1.7; }
+  .cmdline .p { color: #7ee787; user-select: none; }
+  .cmdline .c { color: #8b949e; }
+  .copy { display: inline-flex; align-items: center; gap: .4rem; height: 2rem; padding: 0 .8rem; border-radius: 6px;
+          background: #21262d; color: var(--term-text); border: 1px solid #30363d; font-weight: 600;
+          transition: background-color .15s, border-color .15s, color .15s; }
+  .copy:hover { background: #30363d; }
+  .copy.done { background: #12261e; border-color: #238636; color: #3fb950; }
+  .legend { display: flex; flex-wrap: wrap; gap: .4rem 1.2rem; margin: .7rem 0 0; font-size: 12.5px; color: var(--dim); }
+  .toast { position: fixed; left: 50%; bottom: 1.5rem; transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+           background: var(--dark-btn); color: var(--panel); padding: .5rem 1rem; border-radius: 8px; font-size: 13.5px;
+           box-shadow: 0 6px 20px rgba(0,0,0,.25); transition: opacity .2s, transform .2s; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* footer */
+  footer { margin-top: 3rem; border-top: 1px solid var(--line); background: var(--panel); }
+  footer .in { max-width: 1120px; margin: 0 auto; padding: 1.5rem 1.25rem; display: grid;
+               grid-template-columns: 2fr 1fr 1fr; gap: 1.5rem; font-size: 13px; color: var(--dim); }
+  footer b { display: block; color: var(--text); margin-bottom: .35rem; font-size: 13.5px; }
+  footer a { display: block; margin: .15rem 0; }
+  footer p { margin: 0 0 .3rem; }
+
+  @media (max-width: 820px) {
+    .panes, .cards { grid-template-columns: 1fr; }
+    section.pane { height: 20rem; }
+    .prow { grid-template-columns: 1fr; gap: .4rem; }
+    .plabel { padding-top: 0; }
+    footer .in { grid-template-columns: 1fr 1fr; }
+    footer .in > :first-child { grid-column: 1 / -1; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="title">
+      <h1>cmd <span>for every system</span></h1>
+      <p class="lead" data-i18n="lead"></p>
+      <p class="facts"><b>C89</b> · libc + POSIX / Win32 · <b>33 targets</b> · <span data-i18n="facts"></span></p>
+    </div>
+    <nav>
+      <a class="btn dark" href="https://github.com/ChenPi11/cmd">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub</a>
+      <button class="btn light" id="ui" aria-label="Language">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M1.5 8h13M8 1.5c1.8 1.8 2.6 4 2.6 6.5S9.8 12.7 8 14.5M8 1.5C6.2 3.3 5.4 5.5 5.4 8s.8 4.7 2.6 6.5"/></svg>
+        <span id="uitext"></span></button>
+    </nav>
+  </header>
+
+  <div class="toolbar">
+    <label><span data-i18n="example"></span> <select id="example"></select></label>
+    <label><span data-i18n="messages"></span> <select id="lang">
+      <option value="en_US.UTF-8">English</option>
+      <option value="zh_CN.UTF-8">简体中文</option>
+      <option value="zh_MS.UTF-8">微软式中文</option>
+      <option value="zh_WY.UTF-8">文言文</option>
+    </select></label>
+    <span class="grow"></span>
+    <span id="status"></span>
+    <button id="run" class="primary" disabled title="Ctrl+Enter">Run ▶</button>
+  </div>
+
+  <div class="panes">
+    <section class="pane">
+      <div class="bar"><span>script.bat</span><span class="grow"></span><span>Ctrl+Enter</span></div>
+      <textarea id="script" spellcheck="false" aria-label="script.bat"></textarea>
+    </section>
+    <section class="pane term">
+      <div class="bar"><span data-i18n="output"></span><span class="grow"></span><button id="clear" data-i18n="clear"></button></div>
+      <pre id="out" class="mono"></pre>
+      <label class="prompt mono"><span>\work&gt;</span>
+        <input id="line" autocomplete="off" spellcheck="false" aria-label="command"></label>
+    </section>
+  </div>
+  <p class="limits" data-i18n="limits"></p>
+
+  <div class="cards">
+    <div class="card"><h2 data-i18n="c1t"></h2><p data-i18n="c1"></p></div>
+    <div class="card"><h2 data-i18n="c2t"></h2><p data-i18n="c2"></p></div>
+    <div class="card"><h2 data-i18n="c3t"></h2><p data-i18n="c3"></p></div>
+  </div>
+
+  <h2 class="section" data-i18n="tt"></h2>
+  <p class="sub" id="summary"></p>
+  <div class="picker">
+    <div class="prow"><span class="plabel">System</span><div class="opts" id="sys" role="radiogroup" aria-label="System"></div></div>
+    <div class="prow"><span class="plabel">Arch</span><div class="opts" id="arch" role="radiogroup" aria-label="Arch"></div></div>
+    <div class="prow"><span class="plabel">Variant</span><div class="opts" id="variant" role="radiogroup" aria-label="Variant"></div></div>
+    <div class="result"><span id="level" class="lv"></span><span id="target" class="target mono"></span><span id="why" class="why"></span></div>
+    <div class="build">
+      <span class="cmdline" id="cmdline"></span>
+      <button class="copy" id="copy">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3.5A1.5 1.5 0 009.5 2h-6A1.5 1.5 0 002 3.5v6A1.5 1.5 0 003.5 11H5"/></svg>
+        <span id="copytext"></span></button>
+    </div>
+  </div>
+  <div class="legend">
+    <span><span class="lv L2">L2</span> <span data-i18n="l2"></span></span>
+    <span><span class="lv L1">L1</span> <span data-i18n="l1"></span></span>
+    <span><span class="lv L0">L0</span> <span data-i18n="l0"></span></span>
+    <span><span class="lv B">build</span> <span data-i18n="lb"></span></span>
+  </div>
+</main>
+
+<footer>
+  <div class="in">
+    <div>
+      <b>cmd</b>
+      <p data-i18n="fabout"></p>
+      <p>© ChenPi11 <span data-i18n="fcontrib"></span></p>
+    </div>
+    <div>
+      <b data-i18n="fproject"></b>
+      <a href="https://github.com/ChenPi11/cmd">GitHub</a>
+      <a href="https://github.com/ChenPi11/cmd/blob/main/mcpp/README.md" data-i18n="fguide"></a>
+    </div>
+    <div>
+      <b data-i18n="fbuilt"></b>
+      <a href="https://github.com/mcpp-community/mcpp">mcpp</a>
+      <a href="https://github.com/mcpplibs/openkal">openkal</a>
+      <a href="https://emscripten.org">Emscripten</a>
+    </div>
+  </div>
+</footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="{{name}}.js"></script>
+<script>
+  // The page's own words; technical terms stay in English.
+  const TEXT = {
+    en: {
+      switchTo: '中文',
+      lead: 'The Windows <code>cmd.exe</code> command interpreter, faithfully reimplemented for Linux, Windows, macOS, FreeBSD, NetBSD, OpenBSD, Android, Haiku, the Web, UEFI, MS‑DOS and more.',
+      facts: '4 languages · running here as WebAssembly',
+      example: 'Example', messages: 'cmd language', output: 'Output', clear: 'Clear',
+      placeholder: 'type a command, e.g. dir /b',
+      loading: 'Loading…', ready: 'Ready', running: 'Running…', failed: 'Failed', status: 'exit status',
+      limits: 'In this page WebAssembly starts no programs, files under <code>\\work</code> last for this visit, and <code>pause</code> and <code>set /p</code> read end of file.',
+      c1t: 'Faithful', c1: 'Batch files as <code>cmd.exe</code> runs them: <code>%VAR%</code> and delayed expansion, <code>FOR</code>, <code>CALL :label</code>, <code>GOTO</code>, <code>SET /A</code>, redirection and the builtins. <code>COMMAND.COM</code> with <code>AUTOEXEC.BAT</code> too.',
+      c2t: 'Portable', c2: 'One C89 code base on libc and POSIX (Win32 on Windows): Linux, Windows, macOS, FreeBSD, NetBSD, OpenBSD, Android, GNU/Hurd, Haiku, System V, the Web, UEFI, MS‑DOS and openkal images, on x86_64, aarch64 and i686.',
+      c3t: 'Multilingual', c3: 'Messages in American English, Simplified Chinese, Microsoft-translated Chinese and Classical Chinese, chosen by <code>LANG</code>. Try the cmd language menu above.',
+      tt: 'Build it',
+      summary: (n, l2, l1, b) => `${n} targets with mcpp from one machine: ${l2} at L2, ${l1} at L1, ${b} built only. CI runs a test script on each and checks its level.`,
+      l2: 'starts programs', l1: 'files and batch files', l0: 'the interpreter alone', lb: 'built, not run in CI',
+      copy: 'Copy', copied: 'Copied', toast: 'Commands copied to the clipboard', copyfail: 'Select the commands and copy them',
+      fabout: 'The Windows command interpreter, for every system.', fcontrib: 'and contributors',
+      fproject: 'Project', fguide: 'Build guide', fbuilt: 'Built with',
+      why: {
+        posix: 'A POSIX build: it starts programs by POSIX names.', puredarwin: 'Also runs in PureDarwin.',
+        svr4: 'Runs on the System V/386 R4 kernel in QEMU.', okimg: 'One image, run by okrun on Linux, macOS, Windows and FreeBSD.',
+        okimg2: 'One image, run by okrun.', ok386: 'okrun for i386 does not yet start an image from an image.',
+        web: 'WebAssembly has no processes; this page is the browser build.', uefi: 'The firmware offers no program start yet.',
+        dos: 'DOS offers no program start yet.', djgpp: 'DJGPP has neither fork nor posix_spawn.', android: 'Built; CI runs the x86_64 build.',
+      },
+    },
+    zh: {
+      switchTo: 'English',
+      lead: 'Windows <code>cmd.exe</code> 命令解释器的忠实重实现，运行于 Linux、Windows、macOS、FreeBSD、NetBSD、OpenBSD、Android、Haiku、Web、UEFI、MS‑DOS 等多个系统。',
+      facts: '4 种语言 · 此处以 WebAssembly 运行',
+      example: '示例', messages: 'cmd 语言', output: '输出', clear: '清空',
+      placeholder: '输入命令，例如 dir /b',
+      loading: '加载中…', ready: '就绪', running: '运行中…', failed: '失败', status: '退出码',
+      limits: '本页中 WebAssembly 不能启动程序；<code>\\work</code> 下的文件只在本次访问内保留；<code>pause</code> 与 <code>set /p</code> 读到的是文件结束。',
+      c1t: '忠实', c1: '按 <code>cmd.exe</code> 的方式运行批处理：<code>%VAR%</code> 与延迟展开、<code>FOR</code>、<code>CALL :label</code>、<code>GOTO</code>、<code>SET /A</code>、重定向与内建命令；另有带 <code>AUTOEXEC.BAT</code> 的 <code>COMMAND.COM</code>。',
+      c2t: '可移植', c2: '一套 C89 代码，只依赖 libc 与 POSIX（Windows 上为 Win32）：Linux、Windows、macOS、FreeBSD、NetBSD、OpenBSD、Android、GNU/Hurd、Haiku、System V、Web、UEFI、MS‑DOS 与 openkal 映像，覆盖 x86_64、aarch64 与 i686。',
+      c3t: '多语言', c3: '提示信息有美式英语、简体中文、微软式中文与文言文，由 <code>LANG</code> 选择。可试试上方的 cmd 语言菜单。',
+      tt: '构建',
+      summary: (n, l2, l1, b) => `mcpp 在一台机器上构建 ${n} 个目标：${l2} 个 L2，${l1} 个 L1，${b} 个仅构建。CI 在每个目标上运行测试脚本并检查其级别。`,
+      l2: '可启动程序', l1: '文件与批处理', l0: '仅解释器本身', lb: '构建，CI 中不运行',
+      copy: '复制', copied: '已复制', toast: '命令已复制到剪贴板', copyfail: '请选中命令后手动复制',
+      fabout: 'Windows 命令解释器，适用于每个系统。', fcontrib: '与贡献者',
+      fproject: '项目', fguide: '构建指南', fbuilt: '构建工具',
+      why: {
+        posix: 'POSIX 构建：按 POSIX 的方式命名所启动的程序。', puredarwin: '也在 PureDarwin 中运行。',
+        svr4: '在 QEMU 中的 System V/386 R4 内核上运行。', okimg: '一个映像，由 okrun 在 Linux、macOS、Windows 与 FreeBSD 上运行。',
+        okimg2: '一个映像，由 okrun 运行。', ok386: 'i386 的 okrun 尚不能由映像启动映像。',
+        web: 'WebAssembly 没有进程；本页即浏览器构建。', uefi: '固件尚不提供启动程序。',
+        dos: 'DOS 尚不提供启动程序。', djgpp: 'DJGPP 既没有 fork 也没有 posix_spawn。', android: '已构建；CI 运行 x86_64 构建。',
+      },
+    },
+  };
+
+  // Every target mcpp builds: system, arch, variant, target, the level CI checks (.github/mcpp/floor.txt), a note.
+  const TARGETS = [
+    ['Linux', 'x86_64', 'glibc', 'x86_64-linux-gnu', 'L2'],
+    ['Linux', 'aarch64', 'glibc', 'aarch64-linux-gnu', 'L2'],
+    ['Linux', 'x86_64', 'musl, static', 'x86_64-linux-musl', 'L2'],
+    ['Linux', 'aarch64', 'musl, static', 'aarch64-linux-musl', 'L2'],
+    ['Linux', 'i686', 'musl, static', 'i686-linux-musl', 'L2'],
+    ['Windows', 'x86_64', 'MinGW', 'x86_64-windows-gnu', 'L2'],
+    ['Windows', 'aarch64', 'MinGW', 'aarch64-windows-gnu', 'L2'],
+    ['Windows', 'x86_64', 'MSVC', 'x86_64-windows-msvc', 'L2'],
+    ['Windows', 'i686', 'MSVC', 'i686-windows-msvc', 'L2'],
+    ['Windows', 'x86_64', 'musl, POSIX', 'x86_64-windows-musl', 'L1', 'posix'],
+    ['macOS', 'aarch64', 'Apple SDK', 'aarch64-macos', 'L2'],
+    ['macOS', 'aarch64', 'musl, static', 'aarch64-macos-musl', 'L2'],
+    ['macOS', 'x86_64', 'musl, static', 'x86_64-macos-musl', 'L2', 'puredarwin'],
+    ['FreeBSD', 'x86_64', 'base', 'x86_64-freebsd', 'L2'],
+    ['FreeBSD', 'aarch64', 'base', 'aarch64-freebsd', 'L2'],
+    ['FreeBSD', 'x86_64', 'musl, static', 'x86_64-freebsd-musl', 'L2'],
+    ['FreeBSD', 'aarch64', 'musl, static', 'aarch64-freebsd-musl', 'L2'],
+    ['NetBSD', 'x86_64', 'base', 'x86_64-netbsd', 'L2'],
+    ['NetBSD', 'aarch64', 'base', 'aarch64-netbsd', 'L2'],
+    ['OpenBSD', 'x86_64', 'base', 'x86_64-openbsd', 'L2'],
+    ['OpenBSD', 'aarch64', 'base', 'aarch64-openbsd', 'L2'],
+    ['Android', 'x86_64', 'NDK', 'x86_64-linux-android', 'L2'],
+    ['Android', 'aarch64', 'NDK', 'aarch64-linux-android', 'build', 'android'],
+    ['GNU/Hurd', 'x86_64', 'glibc', 'x86_64-hurd', 'L2'],
+    ['Haiku', 'x86_64', 'libroot', 'x86_64-haiku', 'L2'],
+    ['System V', 'i686', 'R4', 'i686-svr4-musl', 'L2', 'svr4'],
+    ['Web', 'wasm32', 'Emscripten', 'wasm32-emscripten', 'L1', 'web'],
+    ['UEFI', 'x86_64', 'openkal', 'x86_64-uefi', 'L1', 'uefi'],
+    ['MS-DOS', 'i686', 'openkal', 'i686-dos-musl', 'L1', 'dos'],
+    ['MS-DOS', 'i586', 'DJGPP', 'i586-dos-djgpp', 'L1', 'djgpp'],
+    ['openkal', 'x86_64', 'image', 'x86_64-openkal', 'L2', 'okimg'],
+    ['openkal', 'aarch64', 'image', 'aarch64-openkal', 'L2', 'okimg2'],
+    ['openkal', 'i686', 'image', 'i686-openkal', 'L1', 'ok386'],
+  ];
+
+  const EXAMPLES = [
+    ['Hello', ['@echo off', 'echo Hello from cmd in your browser!', 'ver', 'echo.', 'set /a "ANSWER=6*7" >nul', 'echo The answer is %ANSWER%.']],
+    ['Loops', ['@echo off', 'setlocal enabledelayedexpansion', 'set N=0', ':loop', 'set /a N+=1 >nul',
+               'if !N! lss 5 goto loop', 'echo counted to !N!', 'set /a "SQ=N*N" >nul', 'echo %N% squared is !SQ!']],
+    ['Files', ['@echo off', 'md demo 2>nul', 'echo hello from a file> demo\\note.txt', 'echo second line>> demo\\note.txt',
+               'type demo\\note.txt', 'copy demo\\note.txt demo\\copy.txt >nul', 'dir /b demo']],
+    ['FOR and CALL', ['@echo off', 'for %%f in (alpha beta gamma) do call :show %%f', 'for /l %%i in (1,1,3) do echo step %%i',
+                      'goto :eof', ':show', 'echo item %1']],
+    ['Messages', ['@echo off', 'nosuchcommand', 'type missing.txt']],
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const view = $('out'), state = $('status'), runButton = $('run'), script = $('script');
+  let ui = localStorage.getItem('cmd-ui') ||
+           ((navigator.languages || [navigator.language || 'en']).some((l) => /^zh/i.test(l)) ? 'zh' : 'en');
+  const t = (k) => TEXT[ui][k];
+  let saved = { dirs: [], files: {} };   // \work, carried between runs
+  let busy = false, stateKey = 'loading';
+
+  function setState(k) { stateKey = k; state.textContent = t(k); }
+
+  function applyUi() {
+    document.documentElement.lang = ui === 'zh' ? 'zh-CN' : 'en';
+    $('uitext').textContent = t('switchTo');
+    for (const el of document.querySelectorAll('[data-i18n]')) el.innerHTML = t(el.dataset.i18n);
+    $('line').placeholder = t('placeholder');
+    $('copytext').textContent = t('copy');
+    const count = (l) => TARGETS.filter((r) => r[4] === l).length;
+    $('summary').textContent = t('summary')(TARGETS.length, count('L2'), count('L1'), count('build'));
+    setState(stateKey);
+    render();
+  }
+
+  // The build picker: a system, an arch, a variant; then the target, its level and its commands.
+  const pick = { sys: 'Linux', arch: 'x86_64', variant: 'glibc' };
+  const uniq = (xs) => [...new Set(xs)];
+  const levelClass = (l) => (l === 'build' ? 'B' : l);
+  // The best level among the targets an option leads to, for the dot beside it.
+  const best = (rows) => ['L2', 'L1', 'build'].find((l) => rows.some((r) => r[4] === l));
+  function group(id, values, current, rowsOf, key) {
+    const box = $(id);
+    box.replaceChildren(...values.map((v) => {
+      const b = document.createElement('button');
+      b.className = 'opt' + (v === current ? ' on' : '');
+      b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', v === current);
+      b.textContent = v;
+      const dot = document.createElement('span'); dot.className = 'dot ' + levelClass(best(rowsOf(v)));
+      b.appendChild(dot);
+      b.onclick = () => { pick[key] = v; render(); };
+      return b;
+    }));
+  }
+  function render() {
+    const inSys = TARGETS.filter((r) => r[0] === pick.sys);
+    const arches = uniq(inSys.map((r) => r[1]));
+    if (!arches.includes(pick.arch)) pick.arch = arches[0];
+    const inArch = inSys.filter((r) => r[1] === pick.arch);
+    const variants = uniq(inArch.map((r) => r[2]));
+    if (!variants.includes(pick.variant)) pick.variant = variants[0];
+    group('sys', uniq(TARGETS.map((r) => r[0])), pick.sys, (v) => TARGETS.filter((r) => r[0] === v), 'sys');
+    group('arch', arches, pick.arch, (v) => inSys.filter((r) => r[1] === v), 'arch');
+    group('variant', variants, pick.variant, (v) => inArch.filter((r) => r[2] === v), 'variant');
+    const [, , , target, level, why] = inArch.find((r) => r[2] === pick.variant);
+    $('level').className = 'lv ' + levelClass(level); $('level').textContent = level;
+    $('target').textContent = target;
+    $('why').textContent = why ? t('why')[why] : '';
+    const build = target === 'wasm32-emscripten'
+      ? 'mcpp pack cmd.exe --profile web --target wasm32-emscripten --pkg-format web'
+      : 'mcpp build --release --target ' + target;
+    const line = (text, cls) => {
+      const div = document.createElement('div');
+      div.append(Object.assign(document.createElement('span'), { className: 'p', textContent: '$ ' }),
+                 Object.assign(document.createElement('span'), { className: cls || '', textContent: text }));
+      return div;
+    };
+    $('cmdline').replaceChildren(line(build), line('mcpp run cmd.exe --release --target ' + target + ' -- /c ver', 'c'));
+    $('cmdline').dataset.text = build + '\n' + 'mcpp run cmd.exe --release --target ' + target + ' -- /c ver';
+  }
+
+  // Copy: the clipboard API where the page is a secure context, else a selection copied by the browser.
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+    return new Promise((ok, fail) => {
+      const ta = Object.assign(document.createElement('textarea'), { value: text });
+      ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+      document.body.appendChild(ta); ta.select();
+      const done = document.execCommand('copy'); ta.remove();
+      done ? ok() : fail(new Error('copy'));
+    });
+  }
+  let toastTimer;
+  function toast(text) {
+    $('toast').textContent = text; $('toast').classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.remove('show'), 1800);
+  }
+  $('copy').onclick = () => copyText($('cmdline').dataset.text).then(() => {
+    $('copy').classList.add('done'); $('copytext').textContent = t('copied') + ' ✓'; toast(t('toast'));
+    setTimeout(() => { $('copy').classList.remove('done'); $('copytext').textContent = t('copy'); }, 1600);
+  }, () => {
+    const r = document.createRange(); r.selectNodeContents($('cmdline'));
+    getSelection().removeAllRanges(); getSelection().addRange(r); toast(t('copyfail'));
+  });
+
+  function say(text, cls) {
+    const div = document.createElement('div');
+    if (cls) div.className = cls;
+    div.textContent = text;
+    view.appendChild(div);
+    view.scrollTop = view.scrollHeight;
+  }
+
+  function snapshot(FS, root) {
+    const dirs = [], files = {};
+    (function walk(dir) {
+      for (const name of FS.readdir(dir)) {
+        if (name === '.' || name === '..') continue;
+        const p = dir + '/' + name, st = FS.stat(p);
+        if (FS.isDir(st.mode)) { dirs.push(p); walk(p); } else files[p] = FS.readFile(p);
+      }
+    })(root);
+    return { dirs, files };
+  }
+
+  // Runs cmd.exe with argv in a new instance over \work; resolves {status, lines}.
+  // A line written to standard error starts with U+0000.
+  window.runCmd = async function (argv, extra) {
+    const lines = [], strip = (s) => s.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '');
+    const lang = $('lang').value;   // read by the C library as the instance starts
+    const mod = await createCmd({
+      print: (s) => lines.push(strip(s)),
+      printErr: (s) => lines.push('\u0000' + strip(s)),
+      stdin: () => null,
+      preRun: [(m) => { m.ENV.LANG = lang; }],
+    });
+    const FS = mod.FS;
+    FS.mkdir('/work');
+    for (const d of saved.dirs) FS.mkdir(d);
+    for (const [p, data] of Object.entries(saved.files)) FS.writeFile(p, data);
+    for (const [p, text] of Object.entries(extra || {})) FS.writeFile('/work/' + p, text);
+    FS.chdir('/work');
+    let code;
+    try { code = mod.callMain(argv); } catch (e) { code = e && e.status !== undefined ? e.status : String(e); }
+    saved = snapshot(FS, '/work');
+    return { status: code, lines };
+  };
+
+  async function run(label, argv, extra) {
+    if (busy) return;
+    busy = true; runButton.disabled = true; setState('running');
+    say('\\work> ' + label, 'cmd');
+    try {
+      const r = await runCmd(argv, extra);
+      for (const l of r.lines) l.startsWith('\u0000') ? say(l.slice(1), 'err') : say(l);
+      if (r.status !== 0) say(t('status') + ' ' + r.status, 'note');
+      setState('ready');
+    } catch (e) {
+      say(String(e && e.message || e), 'err');
+      setState('failed');
+    }
+    busy = false; runButton.disabled = false;
+  }
+
+  for (const [name] of EXAMPLES) $('example').add(new Option(name, name));
+  const load = () => { script.value = EXAMPLES.find(([n]) => n === $('example').value)[1].join('\n') + '\n'; };
+  $('example').onchange = load;
+  load();
+
+  const runScript = () => run('script.bat', ['/c', 'script.bat'],
+                              { 'script.bat': script.value.replace(/\r?\n/g, '\r\n') });
+  runButton.onclick = runScript;
+  $('lang').value = ui === 'zh' ? 'zh_CN.UTF-8' : 'en_US.UTF-8';
+  $('lang').onchange = () => { if (!runButton.disabled) runScript(); };
+  $('ui').onclick = () => {
+    ui = ui === 'zh' ? 'en' : 'zh'; localStorage.setItem('cmd-ui', ui); applyUi();
+    $('lang').value = ui === 'zh' ? 'zh_CN.UTF-8' : 'en_US.UTF-8';
+  };
+  script.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); runScript(); }
+  });
+  $('line').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || !e.target.value.trim()) return;
+    const line = e.target.value; e.target.value = '';
+    run(line, ['/c', line]);
+  });
+  $('clear').onclick = () => { view.textContent = ''; };
+  document.querySelector('.term').addEventListener('click', (e) => {
+    if (!getSelection().toString() && e.target.tagName !== 'BUTTON') $('line').focus();
+  });
+  applyUi();
+
+  if (location.protocol === 'file:') {
+    setState('failed');
+    say('A page opened from disk cannot load {{name}}.wasm (browsers refuse file: requests).', 'err');
+    say('Serve this directory instead, e.g.  python3 -m http.server -d <this directory>', 'note');
+  } else if (typeof createCmd !== 'function') {
+    setState('failed');
+    say('{{name}}.js did not load. Open index.html from the directory mcpp pack writes (.../web/).', 'err');
+  } else {
+    // One instance up front, so the first run is not the one that compiles; then run the first example.
+    createCmd({ print() {}, printErr() {} }).then(() => {
+      setState('ready'); runButton.disabled = false;
+      return runScript();
+    }).then(() => { window.cmdReady = true; },
+            (e) => { setState('failed'); say(String(e && e.message || e), 'err'); });
+  }
+</script>
+</body>
+</html>

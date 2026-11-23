@@ -138,9 +138,9 @@ printf '@echo off\necho batch-ok\n' > /tmp/smoke.bat
 - `cmd.cbp`、`COMMAND.cbp`
 - `cmd.dev`、`COMMAND.dev`
 
-GNU Make、CMake、Gradle、XMake 和 mcpp 会自动发现源文件。mcpp 只编译一次
-共享源码，因此 `COMMAND.COM` 使用 `mcpp/cmain_command.c`
-（`#include "../cmain.c"`）；不要为 mcpp 再添加一个 `main`。
+GNU Make、CMake、Gradle、XMake 和 mcpp 会自动发现源文件。在 mcpp 中两个
+目标都以 `cmain.c` 为入口，`COMMAND.COM` 另加 `ENABLE_AUTOEXEC=1`；不要为
+mcpp 再添加一个 `main`。
 
 ## 代码风格
 

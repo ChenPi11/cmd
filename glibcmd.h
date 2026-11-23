@@ -138,7 +138,11 @@ typedef int libcmd_bool_t;
 #define LIBCMD_SIGPIPE  13
 #else
 #define LIBCMD_SIGINT   SIGINT
+#ifdef SIGTSTP
 #define LIBCMD_SIGTSTP  SIGTSTP
+#else
+#define LIBCMD_SIGTSTP  20
+#endif
 #define LIBCMD_SIGPIPE  SIGPIPE
 #endif
 

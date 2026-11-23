@@ -53,7 +53,7 @@ static void libcmd_echo_signal_and_crlf(int sig)
     visual[vlen++] = '^';
     if (sig == SIGINT)
         visual[vlen++] = 'C';
-    else if (sig == SIGTSTP)
+    else if (sig == LIBCMD_SIGTSTP)
         visual[vlen++] = 'Z';
     else if (sig >= 1 && sig <= 26)
         visual[vlen++] = (char)('@' + sig);
@@ -341,7 +341,7 @@ char *libcmd_readline(const char *prompt, char *buf, size_t size)
             return NULL;
         }
         if (errno == EINTR) {
-            libcmd_echo_signal_and_crlf(SIGTSTP);
+            libcmd_echo_signal_and_crlf(LIBCMD_SIGTSTP);
             return NULL;
         }
         /* Also consult the signal hook (for non-linenoise backends) */
@@ -361,7 +361,7 @@ char *libcmd_readline(const char *prompt, char *buf, size_t size)
      */
     if (strchr(line, '\032')) {
         linenoiseFree(line);
-        libcmd_echo_signal_and_crlf(SIGTSTP);
+        libcmd_echo_signal_and_crlf(LIBCMD_SIGTSTP);
         return NULL;
     }
 

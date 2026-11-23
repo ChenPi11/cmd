@@ -1,8 +1,40 @@
+import std;
 import mcpp;
+import mcpp.dist.web;
 
 // The targets are named "cmd.exe" and "COMMAND.COM" so the CMake output
 // names are preserved on every host.  mcpp would otherwise append the
 // host's executable suffix to the target name as well.
+//
+// On wasm32-emscripten the program runs under node (the host's file system,
+// `mcpp run`), or in a browser when built with the web profile: an in-memory
+// file system and a module that mcpp/web.html starts.  The web directory is
+//   mcpp pack cmd.exe --profile web --target wasm32-emscripten --pkg-format web
 int main() {
-    mcpp::artifact_name("exe", "{name}");
+    // On wasm32-emscripten the row's suffix is kept: the launcher is cmd.exe.js
+    // beside cmd.exe.wasm, the names node, the web page and mcpp.dist.web expect
+    // (mcpp 2026.11.16.1 gives a name the project states precedence over it).
+    if (std::string_view(mcpp::target_os()) != "emscripten")
+        mcpp::artifact_name("exe", "{name}");
+
+    if (std::string_view(mcpp::target_os()) == "emscripten") {
+        // setjmp/longjmp interrupt a builtin; the interpreter recurses deeply.
+        mcpp::cflag("-sSUPPORT_LONGJMP=wasm");
+        for (const char* f : {"-sSUPPORT_LONGJMP=wasm", "-sSTACK_SIZE=1048576", "-sEXIT_RUNTIME=1"})
+            mcpp::link_flag(f);
+        if (std::string_view(mcpp::profile()) == "web") {
+            for (const char* f : {"-sENVIRONMENT=web", "-sMODULARIZE=1", "-sEXPORT_NAME=createCmd",
+                                  "-sINVOKE_RUN=0", "-sFORCE_FILESYSTEM=1",
+                                  "-sEXPORTED_RUNTIME_METHODS=FS,ENV,callMain"})
+                mcpp::link_flag(f);
+        } else {
+            mcpp::link_flag("-sNODERAWFS=1");
+        }
+    }
+
+    mcpp::dist::web::options web;
+    web.target = "cmd.exe";
+    web.template_file = "mcpp/web.html";
+    web.title = "cmd in the browser";
+    return mcpp::dist::web::generate(web) ? 0 : 1;
 }

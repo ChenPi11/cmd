@@ -1,0 +1,372 @@
+name: mcpp
+
+# Builds cmd.exe and COMMAND.COM with mcpp for every target in the README's
+# table. A target is run where a machine or an emulator for it exists, and the
+# run of .github/mcpp/test.bat is graded by check.sh: each row must reach the
+# level floor.txt names for it, and the level it reaches is reported. A target
+# with no runner is built.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  # release.yml: the same builds and runs, each also keeping its files for the release.
+  workflow_call:
+    inputs:
+      release: { type: boolean, default: false }
+
+permissions:
+  contents: read
+
+env:
+  MCPP_VERSION: 2026.11.22.1
+  XLINGS_NON_INTERACTIVE: '1'
+  MSYS_NO_PATHCONV: '1'
+
+jobs:
+  # Built and run on the machine itself.
+  native:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04,     targets: 'x86_64-linux-gnu x86_64-linux-musl i686-linux-musl wasm32-emscripten x86_64-openkal' }
+          - { os: ubuntu-24.04-arm, targets: 'aarch64-linux-gnu aarch64-linux-musl aarch64-openkal' }
+          - { os: macos-15,         targets: 'aarch64-macos aarch64-macos-musl' }
+          - { os: windows-2022,     targets: 'x86_64-windows-gnu x86_64-windows-msvc i686-windows-msvc x86_64-windows-musl' }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mcpp-community/setup-mcpp@v1
+        with:
+          version: ${{ env.MCPP_VERSION }}
+
+      - name: Build and run
+        run: |
+          set -u
+          failed=
+          for t in ${{ matrix.targets }}; do
+            echo "::group::$t"
+            # Both line endings: a batch file from Unix ends its lines in LF alone,
+            # one from Windows in CR LF. The output is graded, not the status: a row
+            # below L2 ends the script with the status of a start that failed.
+            tr -d '\r' < .github/mcpp/test.bat > test.bat
+            awk '{ printf "%s\r\n", $0 }' test.bat > test-crlf.bat
+            if mcpp build --release --target "$t" \
+               && { mcpp run cmd.exe --release --target "$t" -- /c test.bat > "run-$t.txt" || true; } \
+               && sh .github/mcpp/check.sh "run-$t.txt" "$t" \
+               && { mcpp run cmd.exe --release --target "$t" -- /c test-crlf.bat > "run-$t-crlf.txt" || true; } \
+               && GITHUB_STEP_SUMMARY= sh .github/mcpp/check.sh "run-$t-crlf.txt" "$t"; then
+              :
+            else
+              echo "::error::$t"; cat "run-$t.txt" 2> /dev/null; failed="$failed $t"
+            fi
+            echo "::endgroup::"
+          done
+          [ -z "$failed" ] || { echo "::error::failed:$failed"; exit 1; }
+
+      - name: Lines typed at the prompt (a terminal)
+        if: runner.os == 'Linux'
+        run: |
+          set -e
+          for t in ${{ matrix.targets }}; do
+            case $t in
+              *-linux-gnu) python3 .github/mcpp/prompt.py "$(find "target/$t" -path '*bin/cmd.exe' -type f | head -1)" ;;
+              wasm32-emscripten) python3 .github/mcpp/prompt.py node "$(find "target/$t" -path '*bin/cmd.exe.js' -type f | head -1)" ;;
+              *) continue ;;
+            esac
+            echo "$t: the prompt runs typed lines (a terminal)" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Release files
+        if: inputs.release
+        run: for t in ${{ matrix.targets }}; do sh .github/mcpp/collect.sh "$t"; done
+      - uses: actions/upload-artifact@v4
+        if: inputs.release
+        with: { name: 'release-${{ matrix.os }}', path: rel/ }
+
+  # The browser build, packed as a web directory by mcpp.dist.web and run in
+  # Chrome; on main it is published to GitHub Pages.
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mcpp-community/setup-mcpp@v1
+        with:
+          version: ${{ env.MCPP_VERSION }}
+
+      - name: Pack the web directory
+        run: |
+          set -euo pipefail
+          mcpp pack cmd.exe --profile web --target wasm32-emscripten --pkg-format web
+          dir=$(find target -type d -name web -path '*/out/*' | head -1)
+          mkdir -p site && cp "$dir"/* site/ && ls -l site
+
+      - name: Run in Chrome
+        run: |
+          set -euo pipefail
+          (cd "$RUNNER_TEMP" && npm init -y > /dev/null && npm install --silent playwright-core)
+          cp .github/mcpp/web/test.mjs "$RUNNER_TEMP/"
+          (cd site && python3 -m http.server 8000 --bind 127.0.0.1 > /dev/null 2>&1 &)
+          sleep 1
+          node "$RUNNER_TEMP/test.mjs" "$(command -v google-chrome)" http://127.0.0.1:8000/index.html .github/mcpp/test.bat > web.txt
+          sh .github/mcpp/check.sh web.txt web
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: site
+
+      - name: Release files
+        if: inputs.release
+        run: |
+          v=$(sed -n 's/^version *= *"\(.*\)"/\1/p' mcpp.toml)
+          mkdir -p rel/pack && (cd site && zip -qr "../rel/pack/cmd-$v-wasm32-emscripten-web.zip" .)
+      - uses: actions/upload-artifact@v4
+        if: inputs.release
+        with: { name: release-web, path: rel/ }
+
+  # GitHub Pages serves the branch gh-pages: main's page at its root, and the
+  # page of each pull request from this repository at pr-preview/pr-<number>/
+  # until the pull request is closed (.github/workflows/preview.yml).
+  pages:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: web
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency: gh-pages
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: site, path: site }
+      - uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: site
+          branch: gh-pages
+          clean-exclude: pr-preview/
+
+  preview:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    needs: web
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency: gh-pages
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: site, path: site }
+      - uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: site
+          action: deploy
+
+  # Built on Linux x86_64; run by `mcpp run` through the row's runner (a virtual
+  # machine, an emulator), by another machine, or not at all.
+  cross:
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: aarch64-windows-gnu,   check: artifact }
+          # Run on an Intel Mac (the job macos-x86_64), and here in PureDarwin: xnu with
+          # no macOS above it, booted from its project's developer preview (an experiment).
+          - { target: x86_64-macos-musl,     check: artifact, run: true, refusal: true }
+          - { target: x86_64-freebsd,        check: run }
+          - { target: aarch64-freebsd,       check: run }
+          # FreeBSD with no C library of its own beneath: openkal-freebsd under
+          # openkal-musl, run in the same virtual machines.
+          - { target: x86_64-freebsd-musl,   check: run, refusal: true }
+          - { target: aarch64-freebsd-musl,  check: run, refusal: true }
+          - { target: x86_64-netbsd,         check: run }
+          # The aarch64 rows of NetBSD and OpenBSD run in their systems' arm64 images, in
+          # QEMU's translator (mcpp.platforms 0.2.1).
+          - { target: aarch64-netbsd,        check: run }
+          - { target: x86_64-openbsd,        check: run }
+          - { target: aarch64-openbsd,       check: run }
+          - { target: x86_64-linux-android,  check: run }
+          - { target: aarch64-linux-android, check: build }
+          - { target: openkal,               check: artifact }
+          - { target: i686-openkal,          check: run }
+          # Under openkal DOS a name is the one DOS keeps, in upper case (F1.TXT): there
+          # the output is compared without regard to case.
+          - { target: x86_64-uefi,           check: run, refusal: true }
+          - { target: i686-dos-musl,         check: run, refusal: true, foldcase: true }
+          - { target: i586-dos-djgpp,        check: run }
+          # A static ELF32 for the System V i386 kernel interface, run on the System V
+          # kernel: AT&T UNIX System V/386 Release 4.0 Version 3.0 in QEMU (xim's
+          # svr4-disk-image, technical verification only), this project's runner for the row.
+          # The whole script: from openkal-platform 0.31.0 (openkal-svr4 0.3.0) a program
+          # starts another there.
+          - { target: i686-svr4-musl,        check: run, refusal: true }
+          # Rows of mcpp.platforms: built over the system's base, run in an image of the
+          # system booted by dirun.
+          - { target: x86_64-hurd,           check: run, refusal: true }
+          - { target: x86_64-haiku,          check: run, refusal: true }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mcpp-community/setup-mcpp@v1
+        with:
+          version: ${{ env.MCPP_VERSION }}
+
+      - name: Build
+        run: |
+          set -euo pipefail
+          t='${{ matrix.target }}'
+          mkdir -p out
+          if [ "$t" = openkal ]; then
+            # Both architectures as one package that carries okrun for the systems it runs on.
+            mcpp pack --target openkal --all-programs --mode self-contained --systems all
+            cp target/dist/cmd-*-openkal-bundle-all.tar.gz out/
+          else
+            mcpp build --release --target "$t"
+            find target -path '*/bin/*' -type f \( -name 'cmd.exe*' -o -name 'COMMAND.COM*' \) -exec cp {} out/ \;
+          fi
+          cp .github/mcpp/test.bat .github/mcpp/expected.txt .github/mcpp/floor.txt .github/mcpp/check.sh out/
+          ls -l out
+          echo "${t}: builds" >> "$GITHUB_STEP_SUMMARY"
+
+      # A runner that boots a machine is enabled on request; unenabled, mcpp run
+      # refuses with status 2 before installing anything.
+      - name: The machine's runner waits to be enabled
+        if: matrix.refusal
+        run: |
+          t='${{ matrix.target }}'
+          s=0; mcpp run cmd.exe --release --target "$t" -- /c echo started > refused.txt 2>&1 || s=$?
+          cat refused.txt
+          [ "$s" = 2 ] && grep -q 'runner-not-enabled' refused.txt || { echo "::error::$t: expected a refusal (status 2), got $s"; exit 1; }
+
+      - name: Enable KVM
+        if: matrix.check == 'run' || matrix.run
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # The row's runner, enabled for this run; test.bat is given with the run and
+      # is in the program's working directory, wherever the runner starts it.
+      - name: Run test.bat
+        if: matrix.check == 'run' || matrix.run
+        run: |
+          set -euo pipefail
+          t='${{ matrix.target }}'
+          export "MCPP_TARGET_$(echo "$t" | tr 'a-z-' 'A-Z_')_RUNNER_ENABLED=true"
+          if [ '${{ matrix.foldcase }}' = true ]; then export CHECK_FOLD_CASE=1; fi
+          # A machine that does not finish booting in dirun's time limit (the runner's
+          # load, not the program) is booted once more.
+          for attempt in 1 2; do
+            s=0; timeout 3000 mcpp run cmd.exe --release --target "$t" --file .github/mcpp/test.bat=TEST.BAT -- /c TEST.BAT > run.txt 2> run.err || s=$?
+            cat run.err >&2; echo "status $s"
+            grep -q 'time limit expired while booting' run.err || break
+          done
+          sh .github/mcpp/check.sh run.txt "$t"
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.check == 'artifact'
+        with:
+          name: cmd-${{ matrix.target }}
+          path: out/
+
+      - name: Release files
+        if: inputs.release
+        run: sh .github/mcpp/collect.sh '${{ matrix.target }}'
+      - uses: actions/upload-artifact@v4
+        if: inputs.release
+        with: { name: 'release-${{ matrix.target }}', path: rel/ }
+
+  windows-arm64:
+    needs: cross
+    runs-on: windows-11-arm
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: cmd-aarch64-windows-gnu, path: out }
+      - name: Start
+        working-directory: out
+        timeout-minutes: 3
+        run: |
+          ls -l
+          exe=$(ls cmd.exe* | head -1)
+          file "$exe" || true
+          "./$exe" /c ver < /dev/null
+      - name: Run
+        working-directory: out
+        timeout-minutes: 5
+        run: |
+          exe=$(ls cmd.exe* | head -1)
+          timeout 60 "./$exe" /c test.bat < /dev/null > run.txt || echo "status $?"
+          sh check.sh run.txt aarch64-windows-gnu
+
+  macos-x86_64:
+    needs: cross
+    runs-on: macos-15-intel
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: cmd-x86_64-macos-musl, path: out }
+      - name: Run
+        working-directory: out
+        run: |
+          chmod +x cmd.exe
+          ./cmd.exe /c test.bat > run.txt || echo "status $?"
+          sh check.sh run.txt x86_64-macos-musl
+
+  # The openkal package, as it is downloaded, in FreeBSD: its launcher picks
+  # the package's okrun for the system it runs on. The machine is the one the
+  # x86_64-freebsd row's runner boots (dirun and xim's FreeBSD disk image).
+  openkal-on-freebsd:
+    needs: cross
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: cmd-openkal, path: out }
+      - uses: mcpp-community/setup-mcpp@v1
+        with:
+          version: ${{ env.MCPP_VERSION }}
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run test.bat through the package's launcher
+        env:
+          MCPP_TARGET_X86_64_FREEBSD_RUNNER_ENABLED: 'true'
+        run: |
+          set -euo pipefail
+          pkg=$(cd out && ls cmd-*-openkal-bundle-all.tar.gz)
+          # A run of the row installs its runner's packages: dirun, the image, QEMU.
+          mcpp build --release --target x86_64-freebsd
+          mcpp run cmd.exe --release --target x86_64-freebsd -- /c ver
+          h="$HOME/.mcpp/registry/data/xpkgs"
+          dirun=$(ls "$h"/xim-x-dirun/0.6.0/bin/dirun)
+          profile=$(ls "$h"/xim-x-freebsd-disk-image/14.5-1/dirun.toml)
+          qemu=$(ls "$h"/xim-x-qemu-x86/*/bin/qemu-system-x86_64 | head -1)
+          "$dirun" --profile "$profile" --emulator "$qemu" --file "$PWD/out/$pkg=$pkg" --file "$PWD/out/test.bat=TEST.BAT" \
+            -- sh -c "tar -xzf $pkg && ${pkg%.tar.gz}/bin/cmd.exe /c TEST.BAT" > run.txt || echo "status $?"
+          sh out/check.sh run.txt openkal

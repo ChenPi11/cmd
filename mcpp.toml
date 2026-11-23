@@ -1,30 +1,55 @@
 [package]
 name        = "cmd"
-version     = "0.1.0"
+version     = "1.0.0"
 description = "A faithful reimplementation of the Windows cmd.exe command interpreter for Unix."
-mcpp        = ">=2026.11.7.1"
+mcpp        = ">=2026.11.22.1"
 
-# Both personalities are built from the same C sources.  COMMAND.COM is the
-# classic MS-DOS variant, which additionally executes AUTOEXEC.BAT.
-# mcpp compiles shared sources once, so the entry file is the only place a
-# per-target define can take effect; cmain.c is the cmd.exe entry below and
-# mcpp/cmain_command.c is the COMMAND.COM entry.
+# cmd.exe and COMMAND.COM: one entry (cmain.c); COMMAND.COM also runs AUTOEXEC.BAT.
 [build]
 c_standard  = "gnu11"
 include_dirs = ["."]
 sources     = ["*.c", "!cmain.c"]
 
-# On Windows the version-information resource is compiled in as well.
+# The version resource (cmd.rc without winres.h, so UEFI builds it too).
 [resources]
-files = ["cmd.rc"]
+files = ["mcpp/cmd.rc"]
 
-# Target names carry the exact CMake output names; build.mcpp suppresses
-# mcpp's host-dependent executable suffix.
+# build.mcpp: the Emscripten link and the web page (the version the openkal platform uses).
+[build-dependencies.mcpp]
+plugins = { version = "0.26.1", features = ["dist-web"], host-module = true }
+
+# The target names are the output names (build.mcpp drops mcpp's suffix).
 [targets."cmd.exe"]
 kind = "bin"
 main = "cmain.c"
 
 [targets."COMMAND.COM"]
 kind = "bin"
-main = "mcpp/cmain_command.c"
+main = "cmain.c"
 defines = ["ENABLE_AUTOEXEC=1"]
+
+# The openkal platform for its rows, as the 0.31 series; other rows take the index's.
+[target.'cfg(any(env = "musl", os = "openkal", os = "uefi"))']
+platform = "openkal-platform@^0.31"
+
+# System V: run on the System V R4 kernel in QEMU (technical verification only).
+[target.i686-svr4-musl]
+runner   = { cmd = ["dirun", "--profile", "{pkg:svr4-disk-image}/dirun.toml", "--emulator", "{pkg:qemu-x86}/bin/qemu-system-x86_64", "--accel", "tcg", "--", "{}"], host = "any", hosts = ["linux-x86_64"], requires = ["xim:dirun@0.8.0", "xim:svr4-disk-image@4.0.3-20261119", "xim:qemu-x86@9.2.4-1"], enabled = false }
+
+# On Linux the Darwin row runs in PureDarwin (experimental).
+[target.x86_64-macos-musl]
+run_under = ["env"]
+runner = { cmd = ["dirun", "--profile", "{pkg:puredarwin-disk-image}/dirun.toml", "--var", "firmware={pkg:ovmf}/share/edk2/edk2-x86_64-code.fd", "--emulator", "{pkg:qemu-x86}/bin/qemu-system-x86_64", "--", "{}"], host = "any", hosts = ["linux-x86_64"], requires = ["xim:dirun@0.7.0", "xim:puredarwin-disk-image@25.5-20261118-1", "xim:ovmf@9.2.4-4", "xim:qemu-x86@9.2.4-1"], enabled = false }
+
+# musl here has neither sysctl nor _NSGetExecutablePath.
+[target.'cfg(c-abi = "musl")'.build]
+defines = ["CMD_LIBC_MUSL=1"]
+
+# DJGPP has no setpriority(): the System V shims.
+[target.i586-dos-djgpp.build]
+defines = ["LIBCMD_SYSV=1"]
+
+# The browser build of wasm32-emscripten.
+[profile.web]
+opt = 2
+
