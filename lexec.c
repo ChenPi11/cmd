@@ -21,6 +21,9 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#if defined(_POSIX_SPAWN) && _POSIX_SPAWN > 0
+#include <spawn.h>
+#endif
 
 /* -------------------------------------------------------------------------
  * Internal helpers
@@ -71,6 +74,58 @@ static void child_redirect_to_null(int target)
     close(fd);
 }
 
+#if defined(_POSIX_SPAWN) && _POSIX_SPAWN > 0
+/* A system may start programs without being able to copy a process: there
+ * fork reports ENOSYS (a C library hosted on such a system, as openkal's is
+ * on Windows), and posix_spawn, POSIX's own way of starting a program,
+ * starts it instead.  It places the three streams; a program START
+ * detaches forms a group of its own, and a priority START asks for is not
+ * applied. */
+extern char **environ;
+
+static int spawn_program(const char *path,
+                         char *const argv[],
+                         char *const envp[],
+                         int stdin_fd,
+                         int stdout_fd,
+                         int stderr_fd,
+                         int detached,
+                         pid_t *pid)
+{
+    posix_spawn_file_actions_t actions;
+    posix_spawnattr_t attr;
+    int fds[3];
+    int i, r;
+
+    fds[0] = stdin_fd;
+    fds[1] = stdout_fd;
+    fds[2] = stderr_fd;
+
+    posix_spawn_file_actions_init(&actions);
+    posix_spawnattr_init(&attr);
+    for (i = 0; i < 3; i++) {
+        if (fds[i] >= 0 && fds[i] != i)
+            posix_spawn_file_actions_adddup2(&actions, fds[i], i);
+        else if (fds[i] < 0 && detached)
+            posix_spawn_file_actions_addopen(&actions, i, "/dev/null",
+                                             i == 0 ? O_RDONLY : O_WRONLY, 0);
+    }
+    if (detached) {
+        posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETPGROUP);
+        posix_spawnattr_setpgroup(&attr, 0);
+    }
+    r = posix_spawn(pid, path, &actions, &attr, argv,
+                    envp != NULL ? envp : environ);
+    posix_spawnattr_destroy(&attr);
+    posix_spawn_file_actions_destroy(&actions);
+    if (r != 0) {
+        errno = r;
+        return -1;
+    }
+    return 0;
+}
+#endif
+
 /* -------------------------------------------------------------------------
  * Raw fork / exit (used by cparser.c to run pipelines concurrently)
  * ---------------------------------------------------------------------- */
@@ -102,6 +157,12 @@ int libcmd_exec_sync(const char *path,
     int wstatus;
 
     pid = fork();
+#if defined(_POSIX_SPAWN) && _POSIX_SPAWN > 0
+    if (pid < 0 && errno == ENOSYS &&
+        spawn_program(path, argv, envp, stdin_fd, stdout_fd, stderr_fd,
+                      0, &pid) < 0)
+        return -1;
+#endif
     if (pid < 0)
         return -1;
 
@@ -138,6 +199,12 @@ int libcmd_exec_async(const char *path,
     pid_t pid;
 
     pid = fork();
+#if defined(_POSIX_SPAWN) && _POSIX_SPAWN > 0
+    if (pid < 0 && errno == ENOSYS &&
+        spawn_program(path, argv, envp, stdin_fd, stdout_fd, stderr_fd,
+                      1, &pid) < 0)
+        return -1;
+#endif
     if (pid < 0)
         return -1;
 
@@ -182,14 +249,13 @@ int libcmd_find_exec(const char *name,
 {
     const char *start, *end;
     char candidate[4096];
-    struct stat st;
 
     if (name == NULL || out == NULL || out_size == 0)
         return -1;
 
     /* Absolute or relative path with directory separator */
     if (strchr(name, '/') != NULL) {
-        if (stat(name, &st) == 0 && (st.st_mode & S_IXUSR)) {
+        if (libcmd_is_executable_file(name)) {
             return libcmd_sprintf_s(out, out_size, "%s", name) >= 0 ? 0 : -1;
         }
         return -1;
@@ -200,9 +266,7 @@ int libcmd_find_exec(const char *name,
 
     /* Windows cmd semantics: the current directory is searched before
      * PATH, so "build.sh" runs without a "./" prefix after cd. */
-    if (stat(name, &st) == 0 &&
-        S_ISREG(st.st_mode) &&
-        (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
+    if (libcmd_is_executable_file(name)) {
         return libcmd_sprintf_s(out, out_size, "./%s", name) >= 0 ? 0 : -1;
     }
 
@@ -218,9 +282,7 @@ int libcmd_find_exec(const char *name,
                 candidate[end - start] = '/';
                 strcpy(candidate + (end - start) + 1, name);
 
-                if (stat(candidate, &st) == 0 &&
-                    S_ISREG(st.st_mode) &&
-                    (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
+                if (libcmd_is_executable_file(candidate)) {
                     return libcmd_sprintf_s(out, out_size,
                                             "%s", candidate) >= 0 ? 0 : -1;
                 }

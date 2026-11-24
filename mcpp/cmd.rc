@@ -1,0 +1,41 @@
+/*
+ * The version resource of cmd.rc, for mcpp.  It states the constants that
+ * cmd.rc takes from winres.h, so it compiles where no Windows SDK header is
+ * present (the UEFI row is a PE target as well).  Keep the two in step.
+ */
+
+#define VS_VERSION_INFO 1
+
+LANGUAGE 0x04, 0x02 /* LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED */
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0,0
+ PRODUCTVERSION 1,0,0,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x40000L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "080004b0"
+        BEGIN
+            VALUE "FileDescription", "cmd for Unix: Make CMD great again."
+            VALUE "FileVersion", "1.0.0.0"
+            VALUE "InternalName", "cmd.exe"
+            VALUE "LegalCopyright", "Copyright (C) 2026"
+            VALUE "OriginalFilename", "cmd.exe"
+            VALUE "ProductName", "cmd for Unix"
+            VALUE "ProductVersion", "1.0.0.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x800, 1200
+    END
+END

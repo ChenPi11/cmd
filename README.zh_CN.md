@@ -19,6 +19,8 @@ GNU 一双脚太快长大，走得出过去避免再失败。
 
 **仅依赖 libc 与 POSIX API/Win32 API。**
 
+**在浏览器中试用：<https://chenpi11.github.io/cmd/>**（无需安装，以 WebAssembly 运行）。
+
 **[README: American English](README.md)** |
 **[README: 简体中文](README.zh_CN.md)** |
 **[README: 微软式中文](README.zh_MS.md)** |
@@ -89,6 +91,10 @@ GNU 一双脚太快长大，走得出过去避免再失败。
     <td align="center">
       <img src="olinux.png" alt="cmd running on Linux" height="150" />
       <br/><sub><b>Linux</b></sub>
+    </td>
+    <td align="center">
+      <a href="https://chenpi11.github.io/cmd/"><img src="oweb.png" alt="cmd running in a web browser" height="150" /></a>
+      <br/><sub><b><a href="https://chenpi11.github.io/cmd/">Web</a></b></sub>
     </td>
   </tr>
 </table>
@@ -170,8 +176,14 @@ msbuild cmd.sln /p:Configuration=Release
 
 #### mcpp
 
+mcpp 可为本机构建，也可在一台机器上为 33 个目标构建：Linux、Windows、macOS、各 BSD、Android、
+WebAssembly、openkal 映像、UEFI、DOS、System V、GNU/Hurd 与 Haiku。CI 运行其中能运行的每一个，并按级别评判；
+见 [mcpp/README.zh_CN.md](mcpp/README.zh_CN.md)。
+
 ```sh
 mcpp build --release
+mcpp build --release --target x86_64-openkal   # 一个映像，由 okrun 在 Linux、macOS、Windows、FreeBSD 上运行
+mcpp pack cmd.exe --profile web --target wasm32-emscripten --pkg-format web   # 网页
 ```
 
 #### Meson

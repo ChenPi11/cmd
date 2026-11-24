@@ -48,9 +48,8 @@ changed behavior manually, including `/c` strings and batch files.
   `meson.build`, `cmd.vcxproj`, `COMMAND.vcxproj`, `cmd.cbp`, `COMMAND.cbp`,
   `cmd.dev`, `COMMAND.dev`, and the VS `.filters` files. Makefile, CMake,
   Gradle, XMake, and mcpp discover sources by glob.
-- mcpp compiles shared sources once, so `COMMAND.COM` uses
-  `mcpp/cmain_command.c`, which includes `../cmain.c`. Do not add a second
-  `main` file for mcpp.
+- In mcpp both targets name `cmain.c` as their entry; `COMMAND.COM` adds
+  `ENABLE_AUTOEXEC=1`. Do not add a second `main` file for mcpp.
 
 ## Architecture
 

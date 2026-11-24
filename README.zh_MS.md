@@ -16,6 +16,8 @@
 
 **仅需LIBC和POSIX API/Win32 API。**
 
+**在您的浏览器中尝试它：<https://chenpi11.github.io/cmd/>**（无需安装；它作为WebAssembly运行。）
+
 **[README: American English](README.md)** |
 **[README: 简体中文](README.zh_CN.md)** |
 **[README: 微软式中文](README.zh_MS.md)** |
@@ -87,6 +89,10 @@
   <td align="center">
   <img src="olinux.png" alt="cmd running on Linux" height="150" />
   <br/><sub><b>Linux</b></sub>
+  </td>
+  <td align="center">
+  <a href="https://chenpi11.github.io/cmd/"><img src="oweb.png" alt="cmd running in a web browser" height="150" /></a>
+  <br/><sub><b><a href="https://chenpi11.github.io/cmd/">Web</a></b></sub>
   </td>
   </tr>
 </table>
@@ -173,6 +179,8 @@ msbuild cmd.sln /p:Configuration=Release
 ```
 
 #### mcpp
+
+mcpp为主机建造，或从一台机器为33个目标建造。请参阅 [mcpp/README.zh_CN.md](mcpp/README.zh_CN.md)。
 
 ```text
 "嘘

@@ -148,9 +148,9 @@ Update every explicit list:
 - `cmd.cbp`, `COMMAND.cbp`
 - `cmd.dev`, `COMMAND.dev`
 
-GNU Make, CMake, Gradle, XMake, and mcpp discover sources by glob. mcpp
-compiles shared sources once, so `COMMAND.COM` uses `mcpp/cmain_command.c`
-(`#include "../cmain.c"`); do not add another `main` for mcpp.
+GNU Make, CMake, Gradle, XMake, and mcpp discover sources by glob. In mcpp
+both targets name `cmain.c` as their entry, and `COMMAND.COM` adds
+`ENABLE_AUTOEXEC=1`; do not add another `main` for mcpp.
 
 ## Coding style
 

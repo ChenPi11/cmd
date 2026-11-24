@@ -33,12 +33,15 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#if defined(__FreeBSD__)
+/* musl on FreeBSD or Darwin has neither sysctl nor _NSGetExecutablePath. */
+#if defined(__FreeBSD__) && !defined(LIBCMD_MUSL)
+#define SELF_SYSCTL 1
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #endif
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) && !defined(LIBCMD_MUSL)
+#define SELF_DYLD 1
 #include <mach-o/dyld.h>
 #endif
 
@@ -59,17 +62,6 @@ void libcmd_init_self(const char *argv0)
         self_cwd[0] = '\0';
 }
 
-/* Return 1 if 'path' is a regular executable file. */
-static int is_executable_file(const char *path)
-{
-    struct stat st;
-
-    if (stat(path, &st) != 0)
-        return 0;
-    return S_ISREG(st.st_mode) &&
-           (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH));
-}
-
 /*
  * Fall back to argv[0].  'buf' receives the resolved path and returns
  * 0 on success, -1 if nothing usable is found.
@@ -84,7 +76,7 @@ static int self_from_argv0(char *buf, size_t size)
 
     /* Absolute path: use it directly. */
     if (self_argv0[0] == '/') {
-        if (!is_executable_file(self_argv0))
+        if (!libcmd_is_executable_file(self_argv0))
             return -1;
         return libcmd_sprintf_s(buf, size, "%s", self_argv0) < 0 ? -1 : 0;
     }
@@ -96,7 +88,7 @@ static int self_from_argv0(char *buf, size_t size)
                              self_cwd, self_argv0);
         if (r < 0)
             return -1;
-        if (is_executable_file(tmp))
+        if (libcmd_is_executable_file(tmp))
             return libcmd_sprintf_s(buf, size, "%s", tmp) < 0 ? -1 : 0;
     }
 
@@ -109,6 +101,13 @@ const char *libcmd_get_self_path(void)
 {
     static char buf[SELF_PATH_BUF_SIZE];
 
+    /* 0. argv[0] naming a file by a path: the program as it was started.
+     * A loader started explicitly (the system's ld.so, or a runner of
+     * images) is what procfs names then, not this program. */
+    if (self_argv0 != NULL && strchr(self_argv0, '/') != NULL &&
+        self_from_argv0(buf, sizeof(buf)) == 0)
+        return buf;
+
     /* 1. procfs */
     if (access("/proc/self/exe", X_OK) == 0) {
         int n = (int)readlink("/proc/self/exe", buf, sizeof(buf) - 1);
@@ -119,7 +118,7 @@ const char *libcmd_get_self_path(void)
     }
 
     /* 2. FreeBSD: sysctl(KERN_PROC_PATHNAME) */
-#if defined(__FreeBSD__)
+#if defined(SELF_SYSCTL)
     {
         int mib[4];
         size_t len;
@@ -135,7 +134,7 @@ const char *libcmd_get_self_path(void)
 #endif
 
     /* 3. Darwin: _NSGetExecutablePath */
-#if defined(__APPLE__)
+#if defined(SELF_DYLD)
     {
         uint32_t len = (uint32_t)sizeof(buf);
         if (_NSGetExecutablePath(buf, &len) == 0)

@@ -1,0 +1,24 @@
+name: preview
+
+# Removes a closed pull request's page from gh-pages (pr-preview/pr-<number>/);
+# the mcpp workflow deploys it while the pull request is open.
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency: gh-pages
+
+jobs:
+  remove:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rossjrw/pr-preview-action@v1
+        with:
+          action: remove

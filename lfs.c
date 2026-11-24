@@ -241,7 +241,10 @@ int libcmd_is_executable_file(const char *path)
         return 0;
     if (libcmd_stat(path, &st, 1) != 0 || !st.is_regular)
         return 0;
-    return (st.mode & (S_IXUSR | S_IXGRP | S_IXOTH)) ? 1 : 0;
+    /* access(X_OK) asks the system that decides: the owner's execute bit
+     * is the wrong question for another user's file, and a system may keep
+     * no execute bits for stat to report. */
+    return access(path, X_OK) == 0;
 }
 
 /* -------------------------------------------------------------------------

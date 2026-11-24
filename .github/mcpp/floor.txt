@@ -1,0 +1,38 @@
+# The level each row must reach (test.bat): L0 the interpreter alone, L1 files,
+# L2 a program it starts. A row below L2 says why. check.sh reports the level a
+# run reaches, which may be above the floor once the row's platform gains it.
+# row                  floor  why not L2
+x86_64-linux-gnu       L2
+aarch64-linux-gnu      L2
+x86_64-linux-musl      L2
+aarch64-linux-musl     L2
+i686-linux-musl        L2
+aarch64-macos          L2
+aarch64-macos-musl     L2
+x86_64-macos-musl      L2
+x86_64-windows-gnu     L2
+aarch64-windows-gnu    L2
+x86_64-windows-msvc    L2
+i686-windows-msvc      L2
+x86_64-freebsd         L2
+aarch64-freebsd        L2
+x86_64-freebsd-musl    L2
+aarch64-freebsd-musl   L2
+x86_64-netbsd          L2
+aarch64-netbsd         L2
+x86_64-openbsd         L2
+aarch64-openbsd        L2
+x86_64-linux-android   L2
+i686-svr4-musl         L2
+x86_64-hurd            L2
+x86_64-haiku           L2
+x86_64-openkal         L2
+aarch64-openkal        L2
+x86_64-windows-musl    L1     a POSIX build: it hands a program its name with / for \, which Windows' cmd.exe reads as switches
+wasm32-emscripten      L1     WebAssembly has no processes
+web                    L1     WebAssembly has no processes; the page keeps its files for the session
+x86_64-uefi            L1     openkal-uefi offers no program start (mcpp#1005)
+openkal                L1     the package in FreeBSD: okrun there hands an image an image starts to the kernel (mcpplibs/openkal-image#47)
+i686-openkal           L1     okrun for i386 does not yet enter an image an image starts (mcpplibs/openkal-image#46)
+i686-dos-musl          L1     openkal-dos offers no program start (mcpp#1005)
+i586-dos-djgpp         L1     DJGPP has neither fork nor posix_spawn

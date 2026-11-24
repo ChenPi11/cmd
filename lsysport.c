@@ -26,9 +26,7 @@
  * License: GNU GPLv3
  */
 
-#if defined(LIBCMD_SYSV)
 #include <errno.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -182,7 +180,9 @@ int libcmd_fnmatch(const char *pattern, const char *string)
 /* System V provides stime(2); recent glibc (the host used for
  * LIBCMD_SYSV build-checks) dropped its declaration, so declare it
  * explicitly when not otherwise available. */
-#if defined(LIBCMD_SYSV) && !defined(__stime_declared)
+#if defined(__DJGPP__)
+#include <sys/time.h>
+#elif defined(LIBCMD_SYSV) && !defined(__stime_declared)
 #define __stime_declared 1
 int stime(const time_t *);
 #endif
@@ -192,7 +192,13 @@ int stime(const time_t *);
  * clock to a wall-clock time is clock_settime(CLOCK_REALTIME). */
 int libcmd_set_system_time(time_t t)
 {
-#if defined(LIBCMD_SYSV)
+#if defined(__DJGPP__)
+    struct timeval tv;
+
+    tv.tv_sec  = t;
+    tv.tv_usec = 0;
+    return settimeofday(&tv, NULL);
+#elif defined(LIBCMD_SYSV)
     return stime(&t);
 #else
     struct timespec ts;
@@ -211,7 +217,7 @@ int libcmd_set_process_priority(int nice_level)
 {
     if (nice_level == 0)
         return 0;
-#if defined(LIBCMD_SYSV)
+#if defined(LIBCMD_SYSV) || !defined(PRIO_PROCESS)
     errno = 0;
     if (nice(nice_level) == -1 && errno != 0)
         return -1;

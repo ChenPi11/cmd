@@ -14,6 +14,8 @@ Born on GNU/Linux, runs on **EVERY UNIX-LIKE SYSTEMS** and Windows.
 
 **ONLY LIBC and POSIX API/Win32 API required.**
 
+**Try it in your browser: <https://chenpi11.github.io/cmd/>** (no install; it runs as WebAssembly).
+
 **[README: American English](README.md)** |
 **[README: 简体中文](README.zh_CN.md)** |
 **[README: 微软式中文](README.zh_MS.md)** |
@@ -85,6 +87,10 @@ even classic System V.
     <td align="center">
       <img src="olinux.png" alt="cmd running on Linux" height="150" />
       <br/><sub><b>Linux</b></sub>
+    </td>
+    <td align="center">
+      <a href="https://chenpi11.github.io/cmd/"><img src="oweb.png" alt="cmd running in a web browser" height="150" /></a>
+      <br/><sub><b><a href="https://chenpi11.github.io/cmd/">Web</a></b></sub>
     </td>
   </tr>
 </table>
@@ -166,8 +172,15 @@ msbuild cmd.sln /p:Configuration=Release
 
 #### mcpp
 
+mcpp builds for the host, or from one machine for 33 targets: Linux, Windows,
+macOS, the BSDs, Android, WebAssembly, openkal images, UEFI, DOS, System V,
+GNU/Hurd and Haiku. CI runs each one it can and grades it by level; see
+[mcpp/README.md](mcpp/README.md).
+
 ```sh
 mcpp build --release
+mcpp build --release --target x86_64-openkal   # one image, run by okrun on Linux, macOS, Windows, FreeBSD
+mcpp pack cmd.exe --profile web --target wasm32-emscripten --pkg-format web   # the page
 ```
 
 #### Meson
